@@ -37,7 +37,9 @@
 #include <Arduino.h>
 #include <ArduinoJson.h>
 #include <ESPAsyncWebServer.h>
+#if defined(ARDUINO_ARCH_ESP32)
 #include <Update.h>
+#endif
 #include <functional>
 #include <map>
 #include <vector>
@@ -906,6 +908,7 @@ private:
                 _cards[cardId]->handleAction(action, data);
                 
                 // Handle OTA actions
+#if defined(ARDUINO_ARCH_ESP32)
                 if (action == "ota_start") {
                     _otaSize = data["size"].as<size_t>();
                     _otaReceived = 0;
@@ -935,6 +938,12 @@ private:
                     }
                     _otaInProgress = false;
                 }
+#else
+                if (action == "ota_start" || action == "ota_chunk" || action == "ota_end") {
+                    Serial.println("[Dashboard] OTA not supported on this platform");
+                    _otaInProgress = false;
+                }
+#endif
             }
         }
     }

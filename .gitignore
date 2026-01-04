@@ -1,1 +1,4 @@
 .pio
+.vscode
+src/dashboard_html.h
+src/.dashboard_hash

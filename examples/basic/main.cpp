@@ -14,7 +14,11 @@
  *   https://aaronbeckmann.github.io/ESP-DashboardPlus/examples
  */
 
+#if defined(ARDUINO_ARCH_ESP8266)
+#include <ESP8266WiFi.h>
+#else
 #include <WiFi.h>
+#endif
 #include <ESPAsyncWebServer.h>
 #include <ESPDashboardPlus.h>
 #include <dashboard_html.h>  // Auto-generated from extras/dashboard.html
