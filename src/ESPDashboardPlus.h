@@ -62,7 +62,7 @@ enum class CardType {
     CHART,
     BUTTON,
     ACTION,
-    INPUT,
+    DATA_INPUT,
     COLOR,
     DROPDOWN,
     OTA,
@@ -172,7 +172,7 @@ protected:
             case CardType::CHART: return "chart";
             case CardType::BUTTON: return "button";
             case CardType::ACTION: return "action";
-            case CardType::INPUT: return "input";
+            case CardType::DATA_INPUT: return "input";
             case CardType::COLOR: return "color";
             case CardType::DROPDOWN: return "dropdown";
             case CardType::OTA: return "ota";
@@ -239,10 +239,10 @@ public:
         : DashboardCard(id, CardType::STAT, title), value(value), unit(unit) {}
     
     JsonObject toJson(JsonDocument& doc) override {
-        JsonObject card = doc.createNestedObject();
+        JsonObject card = doc.add<JsonObject>();
         card["id"] = id;
         card["type"] = typeToString(type);
-        JsonObject config = card.createNestedObject("config");
+        JsonObject config = card["config"].to<JsonObject>();
         config["title"] = title;
         config["value"] = value;
         config["unit"] = unit;
@@ -271,10 +271,10 @@ public:
         : DashboardCard(id, CardType::STATUS, title), icon(icon) {}
     
     JsonObject toJson(JsonDocument& doc) override {
-        JsonObject card = doc.createNestedObject();
+        JsonObject card = doc.add<JsonObject>();
         card["id"] = id;
         card["type"] = typeToString(type);
-        JsonObject config = card.createNestedObject("config");
+        JsonObject config = card["config"].to<JsonObject>();
         config["title"] = title;
         config["icon"] = iconToString(icon);
         config["variant"] = variantToString(variant);
@@ -308,14 +308,14 @@ public:
         : DashboardCard(id, CardType::CHART, title), chartType(type), maxDataPoints(maxPoints) {}
     
     JsonObject toJson(JsonDocument& doc) override {
-        JsonObject card = doc.createNestedObject();
+        JsonObject card = doc.add<JsonObject>();
         card["id"] = id;
         card["type"] = typeToString(type);
-        JsonObject config = card.createNestedObject("config");
+        JsonObject config = card["config"].to<JsonObject>();
         config["title"] = title;
         config["chartType"] = chartTypeToString(chartType);
         config["color"] = variantToString(variant);
-        JsonArray dataArr = config.createNestedArray("data");
+        JsonArray dataArr = config["data"].to<JsonArray>();
         for (float val : data) {
             dataArr.add(val);
         }
@@ -346,10 +346,10 @@ public:
         : DashboardCard(id, CardType::BUTTON, title), label(label), callback(cb) {}
     
     JsonObject toJson(JsonDocument& doc) override {
-        JsonObject card = doc.createNestedObject();
+        JsonObject card = doc.add<JsonObject>();
         card["id"] = id;
         card["type"] = typeToString(type);
-        JsonObject config = card.createNestedObject("config");
+        JsonObject config = card["config"].to<JsonObject>();
         config["title"] = title;
         config["label"] = label;
         config["variant"] = variantToString(variant);
@@ -380,10 +380,10 @@ public:
         : DashboardCard(id, CardType::LINK, title), label(label), url(url), target("_blank") {}
     
     JsonObject toJson(JsonDocument& doc) override {
-        JsonObject card = doc.createNestedObject();
+        JsonObject card = doc.add<JsonObject>();
         card["id"] = id;
         card["type"] = typeToString(type);
-        JsonObject config = card.createNestedObject("config");
+        JsonObject config = card["config"].to<JsonObject>();
         config["title"] = title;
         config["label"] = label;
         config["url"] = url;
@@ -413,10 +413,10 @@ public:
     }
     
     JsonObject toJson(JsonDocument& doc) override {
-        JsonObject card = doc.createNestedObject();
+        JsonObject card = doc.add<JsonObject>();
         card["id"] = id;
         card["type"] = typeToString(type);
-        JsonObject config = card.createNestedObject("config");
+        JsonObject config = card["config"].to<JsonObject>();
         config["title"] = title;
         config["label"] = label;
         config["value"] = value;
@@ -452,10 +452,10 @@ public:
         : DashboardCard(id, CardType::DATE, title), includeTime(includeTime) {}
     
     JsonObject toJson(JsonDocument& doc) override {
-        JsonObject card = doc.createNestedObject();
+        JsonObject card = doc.add<JsonObject>();
         card["id"] = id;
         card["type"] = typeToString(type);
-        JsonObject config = card.createNestedObject("config");
+        JsonObject config = card["config"].to<JsonObject>();
         config["title"] = title;
         config["value"] = value;
         config["includeTime"] = includeTime;
@@ -465,7 +465,7 @@ public:
     }
     
     void handleAction(const String& action, JsonObject& data) override {
-        if (action == "change" && data.containsKey("value")) {
+        if (action == "change" && !data["value"].isNull()) {
             value = data["value"].as<String>();
             if (callback) callback(value);
         }
@@ -495,10 +495,10 @@ public:
     }
     
     JsonObject toJson(JsonDocument& doc) override {
-        JsonObject card = doc.createNestedObject();
+        JsonObject card = doc.add<JsonObject>();
         card["id"] = id;
         card["type"] = typeToString(type);
-        JsonObject config = card.createNestedObject("config");
+        JsonObject config = card["config"].to<JsonObject>();
         config["title"] = title;
         config["label"] = label;
         config["confirmTitle"] = confirmTitle;
@@ -531,14 +531,14 @@ public:
     InputCallback onSubmit;
     
     InputCard(const String& id, const String& title, const String& placeholder = "")
-        : DashboardCard(id, CardType::INPUT, title), placeholder(placeholder), 
+        : DashboardCard(id, CardType::DATA_INPUT, title), placeholder(placeholder), 
           inputType("text"), min(0), max(100), step(1) {}
     
     JsonObject toJson(JsonDocument& doc) override {
-        JsonObject card = doc.createNestedObject();
+        JsonObject card = doc.add<JsonObject>();
         card["id"] = id;
         card["type"] = typeToString(type);
-        JsonObject config = card.createNestedObject("config");
+        JsonObject config = card["config"].to<JsonObject>();
         config["title"] = title;
         config["value"] = value;
         config["placeholder"] = placeholder;
@@ -553,7 +553,7 @@ public:
     }
     
     void handleAction(const String& action, JsonObject& data) override {
-        if (data.containsKey("value")) {
+        if (!data["value"].isNull()) {
             value = data["value"].as<String>();
             if (action == "change" && onChange) {
                 onChange(value);
@@ -591,13 +591,13 @@ public:
     }
     
     JsonObject toJson(JsonDocument& doc) override {
-        JsonObject card = doc.createNestedObject();
+        JsonObject card = doc.add<JsonObject>();
         card["id"] = id;
         card["type"] = typeToString(type);
-        JsonObject config = card.createNestedObject("config");
+        JsonObject config = card["config"].to<JsonObject>();
         config["title"] = title;
         config["value"] = value;
-        JsonArray presetsArr = config.createNestedArray("presets");
+        JsonArray presetsArr = config["presets"].to<JsonArray>();
         for (const String& preset : presets) {
             presetsArr.add(preset);
         }
@@ -605,7 +605,7 @@ public:
     }
     
     void handleAction(const String& action, JsonObject& data) override {
-        if (action == "change" && data.containsKey("color")) {
+        if (action == "change" && !data["color"].isNull()) {
             value = data["color"].as<String>();
             if (onChange) {
                 onChange(value);
@@ -631,16 +631,16 @@ public:
         : DashboardCard(id, CardType::DROPDOWN, title), placeholder(placeholder) {}
     
     JsonObject toJson(JsonDocument& doc) override {
-        JsonObject card = doc.createNestedObject();
+        JsonObject card = doc.add<JsonObject>();
         card["id"] = id;
         card["type"] = typeToString(type);
-        JsonObject config = card.createNestedObject("config");
+        JsonObject config = card["config"].to<JsonObject>();
         config["title"] = title;
         config["value"] = value;
         config["placeholder"] = placeholder;
-        JsonArray optionsArr = config.createNestedArray("options");
+        JsonArray optionsArr = config["options"].to<JsonArray>();
         for (const DropdownOption& opt : options) {
-            JsonObject optObj = optionsArr.createNestedObject();
+            JsonObject optObj = optionsArr.add<JsonObject>();
             optObj["value"] = opt.value;
             optObj["label"] = opt.label;
         }
@@ -648,7 +648,7 @@ public:
     }
     
     void handleAction(const String& action, JsonObject& data) override {
-        if (action == "change" && data.containsKey("value")) {
+        if (action == "change" && !data["value"].isNull()) {
             value = data["value"].as<String>();
             if (onChange) {
                 onChange(value);
@@ -676,10 +676,10 @@ public:
         : DashboardCard(id, CardType::TOGGLE, title), label(label), value(defaultValue) {}
     
     JsonObject toJson(JsonDocument& doc) override {
-        JsonObject card = doc.createNestedObject();
+        JsonObject card = doc.add<JsonObject>();
         card["id"] = id;
         card["type"] = typeToString(type);
-        JsonObject config = card.createNestedObject("config");
+        JsonObject config = card["config"].to<JsonObject>();
         config["title"] = title;
         config["label"] = label;
         config["value"] = value;
@@ -687,7 +687,7 @@ public:
     }
     
     void handleAction(const String& action, JsonObject& data) override {
-        if (action == "change" && data.containsKey("value")) {
+        if (action == "change" && !data["value"].isNull()) {
             value = data["value"].as<bool>();
             if (onChange) {
                 onChange(value);
@@ -712,10 +712,10 @@ public:
         : DashboardCard(id, CardType::SLIDER, title), min(min), max(max), step(step), unit(unit), value(min) {}
     
     JsonObject toJson(JsonDocument& doc) override {
-        JsonObject card = doc.createNestedObject();
+        JsonObject card = doc.add<JsonObject>();
         card["id"] = id;
         card["type"] = typeToString(type);
-        JsonObject config = card.createNestedObject("config");
+        JsonObject config = card["config"].to<JsonObject>();
         config["title"] = title;
         config["value"] = value;
         config["min"] = min;
@@ -726,7 +726,7 @@ public:
     }
     
     void handleAction(const String& action, JsonObject& data) override {
-        if (action == "change" && data.containsKey("value")) {
+        if (action == "change" && !data["value"].isNull()) {
             value = data["value"].as<int>();
             if (onChange) {
                 onChange(value);
@@ -753,16 +753,16 @@ public:
           value(min), warningThreshold(70), dangerThreshold(90) {}
     
     JsonObject toJson(JsonDocument& doc) override {
-        JsonObject card = doc.createNestedObject();
+        JsonObject card = doc.add<JsonObject>();
         card["id"] = id;
         card["type"] = typeToString(type);
-        JsonObject config = card.createNestedObject("config");
+        JsonObject config = card["config"].to<JsonObject>();
         config["title"] = title;
         config["value"] = value;
         config["min"] = min;
         config["max"] = max;
         config["unit"] = unit;
-        JsonObject thresholds = config.createNestedObject("thresholds");
+        JsonObject thresholds = config["thresholds"].to<JsonObject>();
         thresholds["warning"] = warningThreshold;
         thresholds["danger"] = dangerThreshold;
         return card;
@@ -785,10 +785,10 @@ public:
         : DashboardCard(id, CardType::OTA, title), maxSizeMB(maxSize) {}
     
     JsonObject toJson(JsonDocument& doc) override {
-        JsonObject card = doc.createNestedObject();
+        JsonObject card = doc.add<JsonObject>();
         card["id"] = id;
         card["type"] = typeToString(type);
-        JsonObject config = card.createNestedObject("config");
+        JsonObject config = card["config"].to<JsonObject>();
         config["title"] = title;
         config["maxSize"] = maxSizeMB;
         return card;
@@ -809,15 +809,15 @@ public:
         : DashboardCard(id, CardType::CONSOLE, title), maxEntries(maxEntries), autoScroll(true) {}
     
     JsonObject toJson(JsonDocument& doc) override {
-        JsonObject card = doc.createNestedObject();
+        JsonObject card = doc.add<JsonObject>();
         card["id"] = id;
         card["type"] = typeToString(type);
-        JsonObject config = card.createNestedObject("config");
+        JsonObject config = card["config"].to<JsonObject>();
         config["title"] = title;
         config["autoScroll"] = autoScroll;
-        JsonArray logsArr = config.createNestedArray("logs");
+        JsonArray logsArr = config["logs"].to<JsonArray>();
         for (const LogEntry& entry : logs) {
-            JsonObject logObj = logsArr.createNestedObject();
+            JsonObject logObj = logsArr.add<JsonObject>();
             logObj["timestamp"] = entry.timestamp;
             logObj["level"] = logLevelToString(entry.level);
             logObj["message"] = entry.message;
@@ -942,10 +942,11 @@ private:
     void sendCardsToClient(AsyncWebSocketClient* client) {
         DynamicJsonDocument doc(8192);
         doc["type"] = "init";
-        JsonArray cardsArray = doc.createNestedArray("cards");
+        JsonArray cardsArray = doc["cards"].to<JsonArray>();
         
         for (auto& pair : _cards) {
-            pair.second->toJson(cardsArray);
+            JsonObject card = pair.second->toJson(doc);
+            cardsArray.add(card);
         }
         
         String output;
@@ -1224,7 +1225,7 @@ using ESPDashboard = ESPDashboardPlus;
             
             DynamicJsonDocument doc(2048);
             JsonObject data = doc.to<JsonObject>();
-            JsonArray dataArr = data.createNestedArray("data");
+            JsonArray dataArr = data["data"].to<JsonArray>();
             for (float v : card->data) {
                 dataArr.add(v);
             }
@@ -1365,7 +1366,7 @@ using ESPDashboard = ESPDashboardPlus;
             
             DynamicJsonDocument doc(512);
             JsonObject data = doc.to<JsonObject>();
-            JsonArray logsArr = data.createNestedArray("logs");
+            JsonArray logsArr = data["logs"].to<JsonArray>();
             broadcastUpdate(consoleId, data);
         }
     }
@@ -1379,9 +1380,9 @@ private:
             // Broadcast the new log entry
             DynamicJsonDocument doc(4096);
             JsonObject data = doc.to<JsonObject>();
-            JsonArray logsArr = data.createNestedArray("logs");
+            JsonArray logsArr = data["logs"].to<JsonArray>();
             for (const LogEntry& entry : card->logs) {
-                JsonObject logObj = logsArr.createNestedObject();
+                JsonObject logObj = logsArr.add<JsonObject>();
                 logObj["timestamp"] = entry.timestamp;
                 logObj["level"] = card->getLogLevelString(entry.level);
                 logObj["message"] = entry.message;

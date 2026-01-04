@@ -32,7 +32,23 @@ from pathlib import Path
 
 def get_lib_root():
     """Get the library root directory (parent of scripts/)."""
-    script_dir = Path(__file__).parent.absolute()
+    try:
+        # Normal case: use the script file path
+        script_path = Path(__file__).resolve()
+        script_dir = script_path.parent
+    except NameError:
+        # __file__ may be undefined in some environments (interactive shell, some build hooks)
+        # Fall back to sys.argv[0] when available, otherwise use the current working directory
+        try:
+            argv0 = sys.argv[0]
+            if argv0:
+                script_path = Path(argv0).resolve()
+                script_dir = script_path.parent
+            else:
+                raise Exception("sys.argv[0] is empty")
+        except Exception:
+            script_dir = Path.cwd()
+            print(f"[ESP-DashboardPlus] Note: __file__ not defined; using CWD '{script_dir}'")
     return script_dir.parent
 
 def calculate_hash(content):
