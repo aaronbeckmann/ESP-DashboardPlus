@@ -171,8 +171,18 @@ const uint8_t DASHBOARD_HTML_DATA[{compressed_size}] PROGMEM = {{
 
 def main():
     """Main entry point."""
-    lib_root = get_lib_root()
-    
+    # Prefer PlatformIO's PROJECT_DIR when available (SCons env provides it),
+    # otherwise fall back to resolving the script location.
+    if 'env' in globals():
+        try:
+            project_dir = env['PROJECT_DIR']
+            lib_root = Path(project_dir)
+            print(f"[ESP-DashboardPlus] Using PROJECT_DIR from PlatformIO: {lib_root}")
+        except Exception:
+            lib_root = get_lib_root()
+    else:
+        lib_root = get_lib_root()
+
     html_path = lib_root / 'extras' / 'dashboard.html'
     header_path = lib_root / 'src' / 'dashboard_html.h'
     hash_path = lib_root / 'src' / '.dashboard_hash'
