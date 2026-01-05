@@ -32,9 +32,9 @@
     "espressif8266"
   ],
   "dependencies": {
-    "ESP Async WebServer": "*",
-    "bblanchon/ArduinoJson": "^7.0.0",
-    "me-no-dev/AsyncTCP": "^1.1.1"
+    "mathieucarbou/AsyncTCP": "^3.3.2",
+    "mathieucarbou/ESPAsyncWebServer": "^3.6.0",
+    "bblanchon/ArduinoJson": "^7.0.0"
   },
   "build": {
     "libArchive": false,
