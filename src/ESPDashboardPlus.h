@@ -874,7 +874,7 @@ private:
    String _lastUpdate;
     
     void handleWebSocketMessage(AsyncWebSocketClient* client, const String& message) {
-        StaticJsonDocument<1024> doc;
+        StaticJsonDocument<2048> doc;
         DeserializationError error = deserializeJson(doc, message);
          
          if (error) {
@@ -902,7 +902,8 @@ private:
                     _otaInProgress = true;
                     
                     if (!Update.begin(_otaSize)) {
-                        Serial.println("[Dashboard] OTA begin failed");
+                        Serial.print("[Dashboard] OTA begin failed: ");
+                        Update.printError(Serial);
                         _otaInProgress = false;
                     }
                 } else if (action == "ota_chunk" && _otaInProgress) {

@@ -1547,7 +1547,7 @@
         reconnectTimeout = null;
       }
       updateStatus(false);
-      const wsUrl = 'ws://' + window.location.hostname + '/ws';
+      const wsUrl = 'ws://' + "192.168.178.101"+ '/ws';
       ws = new WebSocket(wsUrl);
 
       ws.onopen = () => {
@@ -1719,6 +1719,7 @@
     }
 
     function sendAction(cardId, action, data = {}) {
+      console.log(`[Dashboard] Sending action: ${action} for card: ${cardId}`, data);
       if (ws && ws.readyState === WebSocket.OPEN) {
         ws.send(JSON.stringify({ type: 'action', cardId, action, data }));
       }
@@ -2442,7 +2443,6 @@
           const chunk = data.slice(offset, offset + chunkSize);
           const b64 = btoa(String.fromCharCode.apply(null, chunk));
           sendAction(id, 'ota_chunk', { data: b64 });
-          
           offset += chunkSize;
           const pct = Math.min(100, Math.round((offset / data.length) * 100));
           document.getElementById(`progress-fill-${id}`).style.width = pct + '%';
@@ -2615,6 +2615,8 @@
       zone.style.display = 'none';
       progress.style.display = 'block';
       
+      console.log('Starting OTA upload: ' + file.name + ' (' + file.size + ' bytes)');  
+
       // Send OTA start
       if (ws && ws.readyState === WebSocket.OPEN) {
         ws.send(JSON.stringify({ type: 'ota_start', name: file.name, size: file.size }));
@@ -2628,6 +2630,7 @@
         const data = new Uint8Array(reader.result);
         
         function sendChunk() {
+          console.log('Sending chunk: ' + offset + ' - ' + Math.min(offset + chunkSize, data.length) + ' / ' + data.length);
           if (offset >= data.length) {
             if (ws && ws.readyState === WebSocket.OPEN) {
               ws.send(JSON.stringify({ type: 'ota_end' }));
@@ -2639,7 +2642,7 @@
           
           const chunk = data.slice(offset, offset + chunkSize);
           const b64 = btoa(String.fromCharCode.apply(null, chunk));
-          
+          console.log('Sending chunk: ' + b64.length + ' bytes');
           if (ws && ws.readyState === WebSocket.OPEN) {
             ws.send(JSON.stringify({ type: 'ota_chunk', data: b64 }));
           }
