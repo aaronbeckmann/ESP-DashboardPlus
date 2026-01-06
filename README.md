@@ -14,9 +14,10 @@ A real-time, on-device web dashboard library for ESP32 microcontrollers. Create 
 
 ## ✨ Features
 
+- **✏️ Customizabe** - Adjust to your brand / product with own themes / custom titles. 
 - **🔌 Real-time Updates** - WebSocket-based communication for instant UI updates
 - **📊 14 Card Types** - Stats, charts, gauges, toggles, sliders, buttons, and more
-- **🎨 Modern Dark Theme** - Industrial IoT aesthetic with light/dark mode support
+- **🎨 Modern Dark & Light Theme** - Industrial IoT aesthetic with light/dark mode support
 - **📱 Responsive Design** - Works on desktop and mobile browsers
 - **🗂️ Tabbed Interface** - Dashboard, Console, and OTA tabs in a single HTML file
 - **🔄 OTA Updates** - Dedicated firmware update tab with device info
@@ -25,6 +26,13 @@ A real-time, on-device web dashboard library for ESP32 microcontrollers. Create 
 - **🛠️ Easy Integration** - Simple C++ API with minimal boilerplate
 
 > **Note**: OTA and Console are available as **tabs only**, not dashboard cards. Configure visibility with `enableOTA` and `enableConsole` parameters in `begin()`.
+
+<p align="center">
+  <img src="docs/assets/console.png" alt="Interactive Console" width="800">
+</p>
+<p align="center">
+  <img src="docs/assets/update.png" alt="OTA Updates" width="800">
+</p>
 
 ## 📦 Installation
 
