@@ -872,11 +872,17 @@ private:
    // Firmware version info (for OTA tab)
    String _version;
    String _lastUpdate;
-     
-   // Robust WebSocket JSON handler: parses exactly len bytes from data buffer
-   void handleWebSocketMessage(AsyncWebSocketClient* client, const uint8_t* data, size_t len) {
-       StaticJsonDocument<4096> doc;
-       DeserializationError error = deserializeJson(doc, data, len);
+    
+    // Robust WebSocket JSON handler: parses exactly len bytes from data buffer
+    void handleWebSocketMessage(AsyncWebSocketClient* client, const uint8_t* data, size_t len) {
+        if (len == 0 || data == nullptr) {
+            // Ignore empty frames
+            return;
+        }
+        
+        StaticJsonDocument<4096> doc;
+        // Explicitly cast to const char* to ensure correct ArduinoJson overload
+        DeserializationError error = deserializeJson(doc, (const char*)data, len);
         
         if (error) {
             Serial.print("[Dashboard] JSON parse error: ");
