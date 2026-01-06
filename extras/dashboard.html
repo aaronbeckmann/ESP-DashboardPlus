@@ -1014,7 +1014,15 @@
       color: var(--text);
       font-size: 0.85rem;
     }
+
+    .theme-option[data-theme="light"]:not(.active) {
+      color: var(--bg)
+    }
     
+    .theme-option[data-theme="light"]:not(.active):hover {
+      background: var(--text)
+    }
+
     .theme-option:hover {
       background: var(--bg-card-hover);
     }
