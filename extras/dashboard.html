@@ -2642,7 +2642,7 @@
           
           const chunk = data.slice(offset, offset + chunkSize);
           const b64 = btoa(String.fromCharCode.apply(null, chunk));
-          console.log('Sending chunk: ' + b64.length + ' bytes');
+          console.log(JSON.stringify({ type: 'ota_chunk', data: b64 }));
           if (ws && ws.readyState === WebSocket.OPEN) {
             ws.send(JSON.stringify({ type: 'ota_chunk', data: b64 }));
           }
