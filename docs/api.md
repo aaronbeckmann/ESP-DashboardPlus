@@ -388,6 +388,55 @@ int weight = card->getWeight()
 
 ---
 
+## Card Sizing
+
+Control how many grid columns and rows a card spans. Default size is 1×1. On mobile screens (<640px), cards automatically resize to 1×1.
+
+### setSize()
+
+Set both column and row span at once.
+
+```cpp
+card->setSize(int sizeX, int sizeY)
+```
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `sizeX` | `int` | Number of columns to span (default: 1) |
+| `sizeY` | `int` | Number of rows to span (default: 1) |
+
+### setSizeX()
+
+Set the column span only.
+
+```cpp
+card->setSizeX(int sizeX)
+```
+
+### setSizeY()
+
+Set the row span only.
+
+```cpp
+card->setSizeY(int sizeY)
+```
+
+### Example
+
+```cpp
+// Wide chart spanning 2 columns
+ChartCard* chart = dashboard.addChartCard("chart", "Temperature", ChartType::LINE, 20);
+chart->setSize(2, 1);
+
+// Large card spanning 2x2
+ChartCard* large = dashboard.addChartCard("large", "Overview", ChartType::AREA, 30);
+large->setSize(2, 2);
+
+// Tall gauge spanning 2 rows
+GaugeCard* gauge = dashboard.addGaugeCard("gauge", "CPU", 0, 100, "%");
+gauge->setSizeY(2);
+```
+
 ## Card Grouping
 
 Organize cards into visual groups with section headers. Groups are optional - if no groups are defined, cards display in a flat grid without section titles.

@@ -49,6 +49,53 @@ dashboard.addGroup("controls", "Device Controls", {"led", "brightness", "fan"});
 
 ---
 
+## Card Sizing
+
+Cards can span multiple grid columns and/or rows using the `setSize()`, `setSizeX()`, and `setSizeY()` methods. Default size is 1×1. On mobile screens (<640px), cards automatically resize to 1×1 for optimal display.
+
+### Setting Card Size
+
+```cpp
+// Span 2 columns, 1 row (wide card)
+ChartCard* wideChart = dashboard.addChartCard("chart", "Wide Chart", ChartType::LINE, 20);
+wideChart->setSize(2, 1);
+
+// Span 1 column, 2 rows (tall card)
+GaugeCard* tallGauge = dashboard.addGaugeCard("gauge", "Tall Gauge", 0, 100, "%");
+tallGauge->setSizeY(2);
+
+// Span 2 columns, 2 rows (large card)
+ChartCard* largeChart = dashboard.addChartCard("large-chart", "Large Chart", ChartType::AREA, 30);
+largeChart->setSize(2, 2);
+```
+
+### Size Methods
+
+| Method | Parameters | Description |
+|--------|------------|-------------|
+| `setSize()` | `int x, int y` | Set both column and row span |
+| `setSizeX()` | `int x` | Set column span only |
+| `setSizeY()` | `int y` | Set row span only |
+
+### Example
+
+```cpp
+// Create a dashboard with mixed card sizes
+ChartCard* tempChart = dashboard.addChartCard("temp-chart", "Temperature History", ChartType::LINE, 30);
+tempChart->setSize(2, 1);  // Wide chart spanning 2 columns
+
+StatCard* temp = dashboard.addStatCard("temp", "Temperature", "23.5", "°C");
+// Default 1x1 size
+
+StatCard* humidity = dashboard.addStatCard("humidity", "Humidity", "65", "%");
+// Default 1x1 size
+
+GaugeCard* cpu = dashboard.addGaugeCard("cpu", "CPU Usage", 0, 100, "%");
+cpu->setSize(1, 2);  // Tall gauge spanning 2 rows
+```
+
+---
+
 ## Card Ordering (Weight)
 
 Cards are displayed in ascending order by weight within their group (or globally if no groups). Lower weight values appear first. Default weight is 0.

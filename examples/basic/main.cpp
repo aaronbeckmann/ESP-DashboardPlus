@@ -132,13 +132,16 @@ void setup() {
     
     // ========================================
     // CHART CARDS - Multiple chart types
+    // Cards can span multiple grid cells using setSize(x, y)
     // ========================================
     
     // Multi-series line chart (Temperature + Humidity on same chart)
+    // This chart spans 2 columns for a wider view
     ChartCard* multiChart = dashboard.addChartCard("multi-chart", "Temp & Humidity", ChartType::LINE, 20);
     int tempSeriesIdx = multiChart->addSeries("Temperature", "primary");
     int humidSeriesIdx = multiChart->addSeries("Humidity", "info");
     multiChart->setWeight(10);  // First chart
+    multiChart->setSize(2, 1);  // Span 2 columns, 1 row
     dashboard.addCardToGroup("charts", "multi-chart");
     
     // Single-series area chart (backwards compatible)
@@ -147,11 +150,12 @@ void setup() {
     cpuChart->setWeight(20);  // Second chart
     dashboard.addCardToGroup("charts", "cpu-chart");
     
-    // Multi-series bar chart
+    // Multi-series bar chart - spans 2x2 for larger display
     ChartCard* barChart = dashboard.addChartCard("bar-chart", "Daily Usage", ChartType::BAR, 10);
     int readSeriesIdx = barChart->addSeries("Reads", "success");
     int writeSeriesIdx = barChart->addSeries("Writes", "warning");
     barChart->setWeight(30);  // Third chart
+    barChart->setSize(2, 2);  // Span 2 columns, 2 rows for larger display
     dashboard.addCardToGroup("charts", "bar-chart");
     
     // ========================================

@@ -56,9 +56,9 @@ void loop() {
 
 ---
 
-## Sensor Monitoring
+## Sensor Monitoring with Multi-Series Charts
 
-Monitor multiple sensors with charts and gauges, logging to the Console tab.
+Monitor multiple sensors with multi-line charts, card groups, and custom ordering.
 
 ```cpp
 #include <WiFi.h>
@@ -69,7 +69,6 @@ Monitor multiple sensors with charts and gauges, logging to the Console tab.
 AsyncWebServer server(80);
 ESPDashboardPlus dashboard("Sensor Monitor");
 
-// Simulated sensor data
 float temperature = 25.0;
 float humidity = 50.0;
 int cpuUsage = 30;
@@ -79,31 +78,44 @@ void setup() {
     WiFi.begin("SSID", "PASSWORD");
     while (WiFi.status() != WL_CONNECTED) delay(500);
     
-    // Enable Console tab for logging
     dashboard.begin(&server, DASHBOARD_HTML_DATA, DASHBOARD_HTML_SIZE, true, true);
     
-    // Stat cards
+    // === SENSORS GROUP (weight 1 = shown first) ===
     StatCard* tempCard = dashboard.addStatCard("temp", "Temperature", "25.0", "°C");
     tempCard->setVariant(CardVariant::PRIMARY);
+    tempCard->setGroup("Sensors");
+    tempCard->setWeight(1);
     
     StatCard* humidCard = dashboard.addStatCard("humid", "Humidity", "50", "%");
     humidCard->setVariant(CardVariant::INFO);
+    humidCard->setGroup("Sensors");
+    humidCard->setWeight(2);
     
-    // Gauge
     GaugeCard* cpuGauge = dashboard.addGaugeCard("cpu", "CPU Usage", 0, 100, "%");
     cpuGauge->setThresholds(60, 85);
+    cpuGauge->setGroup("Sensors");
+    cpuGauge->setWeight(3);
     
-    // Charts
-    ChartCard* tempChart = dashboard.addChartCard("temp-chart", "Temperature History", ChartType::LINE, 30);
-    ChartCard* humidChart = dashboard.addChartCard("humid-chart", "Humidity History", ChartType::AREA, 30);
+    // === CHARTS GROUP (weight 2 = shown second) ===
+    // Multi-series chart with temperature AND humidity
+    ChartCard* envChart = dashboard.addChartCard("env-chart", "Environment", ChartType::LINE, 30);
+    envChart->setGroup("Charts");
+    envChart->setWeight(1);
+    envChart->setSize(2, 1);  // Span 2 columns
+    envChart->addSeries("temp", "Temperature", "#FF6B6B");
+    envChart->addSeries("humid", "Humidity", "#4ECDC4");
     
-    // Status
+    // Single-series CPU chart
+    ChartCard* cpuChart = dashboard.addChartCard("cpu-chart", "CPU History", ChartType::AREA, 30);
+    cpuChart->setGroup("Charts");
+    cpuChart->setWeight(2);
+    
+    // === STATUS GROUP ===
     StatusCard* status = dashboard.addStatusCard("status", "System Status", StatusIcon::CHECK);
     status->setStatus(StatusIcon::CHECK, CardVariant::SUCCESS, "All Systems OK", "Last update: now");
+    status->setGroup("Status");
     
-    // Log to Console tab (no card needed)
     dashboard.logInfo("Sensor monitoring started");
-    
     server.begin();
 }
 
@@ -114,30 +126,25 @@ void loop() {
     if (millis() - lastUpdate > 2000) {
         lastUpdate = millis();
         
-        // Simulate readings
         temperature += random(-5, 6) / 10.0;
         temperature = constrain(temperature, 15, 35);
-        
         humidity += random(-2, 3);
         humidity = constrain(humidity, 30, 70);
-        
         cpuUsage += random(-5, 6);
         cpuUsage = constrain(cpuUsage, 10, 95);
         
-        // Update dashboard
         dashboard.updateStatCard("temp", String(temperature, 1));
         dashboard.updateStatCard("humid", String(humidity, 0));
         dashboard.updateGaugeCard("cpu", cpuUsage);
-        dashboard.updateChartCard("temp-chart", temperature);
-        dashboard.updateChartCard("humid-chart", humidity);
         
-        // Log readings to Console tab
+        // Update multi-series chart
+        dashboard.updateChartCardSeries("env-chart", "temp", temperature);
+        dashboard.updateChartCardSeries("env-chart", "humid", humidity);
+        
+        // Update single-series chart
+        dashboard.updateChartCard("cpu-chart", cpuUsage);
+        
         dashboard.logDebug("T=" + String(temperature, 1) + "°C H=" + String(humidity, 0) + "%");
-        
-        // Check thresholds
-        if (temperature > 30) {
-            dashboard.logWarning("High temperature: " + String(temperature, 1) + "°C");
-        }
     }
 }
 ```
@@ -350,6 +357,54 @@ void loop() {
 
 ---
 
+## Card Sizing Example
+
+Create larger cards that span multiple grid columns or rows.
+
+```cpp
+#include <WiFi.h>
+#include <ESPAsyncWebServer.h>
+#include "ESPDashboardPlus.h"
+#include "dashboard_html.h"
+
+AsyncWebServer server(80);
+ESPDashboardPlus dashboard("Sizing Demo");
+
+void setup() {
+    Serial.begin(115200);
+    WiFi.begin("SSID", "PASSWORD");
+    while (WiFi.status() != WL_CONNECTED) delay(500);
+    
+    dashboard.begin(&server, DASHBOARD_HTML_DATA, DASHBOARD_HTML_SIZE);
+    
+    // Wide chart (2 columns)
+    ChartCard* mainChart = dashboard.addChartCard("main", "Main Metrics", ChartType::LINE, 50);
+    mainChart->setSize(2, 1);
+    mainChart->addSeries("a", "Series A", "#FF6B6B");
+    mainChart->addSeries("b", "Series B", "#4ECDC4");
+    
+    // Tall gauge (2 rows)
+    GaugeCard* gauge = dashboard.addGaugeCard("cpu", "CPU", 0, 100, "%");
+    gauge->setSizeY(2);
+    
+    // Large chart (2x2)
+    ChartCard* bigChart = dashboard.addChartCard("history", "Full History", ChartType::AREA, 100);
+    bigChart->setSize(2, 2);
+    
+    // Normal sized cards
+    dashboard.addStatCard("temp", "Temperature", "25.0", "°C");
+    dashboard.addStatCard("humid", "Humidity", "50", "%");
+    
+    server.begin();
+}
+
+void loop() {
+    dashboard.loop();
+}
+```
+
+---
+
 ## Complete All-Cards Example
 
-See the `examples/basic/main.cpp` in the library for a complete example demonstrating all 14 card types with Console tab logging.
+See the `examples/basic/main.cpp` in the library for a complete example demonstrating all 14 card types, multi-series charts, card groups, ordering, and sizing.

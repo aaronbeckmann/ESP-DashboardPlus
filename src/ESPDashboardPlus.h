@@ -142,9 +142,11 @@ public:
     String title;
     CardVariant variant;
     int weight;  // Lower weight = shown first (default: 0)
+    int sizeX;   // Grid column span (default: 1)
+    int sizeY;   // Grid row span (default: 1)
     
     DashboardCard(const String& id, CardType type, const String& title)
-        : id(id), type(type), title(title), variant(CardVariant::PRIMARY), weight(0) {}
+        : id(id), type(type), title(title), variant(CardVariant::PRIMARY), weight(0), sizeX(1), sizeY(1) {}
      
      virtual ~DashboardCard() {}
      
@@ -154,6 +156,9 @@ public:
     void setVariant(CardVariant v) { variant = v; }
     void setWeight(int w) { weight = w; }
     int getWeight() const { return weight; }
+    void setSize(int x, int y) { sizeX = x; sizeY = y; }
+    void setSizeX(int x) { sizeX = x; }
+    void setSizeY(int y) { sizeY = y; }
      
      // Public access for update helpers
      String getVariantString() { return variantToString(variant); }
@@ -252,6 +257,8 @@ public:
         config["value"] = value;
         config["unit"] = unit;
         config["color"] = variantToString(variant);
+        if (sizeX > 1) config["sizeX"] = sizeX;
+        if (sizeY > 1) config["sizeY"] = sizeY;
         if (trend.length() > 0) {
             config["trend"] = trend;
             config["trendValue"] = trendValue;
@@ -284,6 +291,8 @@ public:
         config["variant"] = variantToString(variant);
         config["label"] = label;
         config["message"] = message;
+        if (sizeX > 1) config["sizeX"] = sizeX;
+        if (sizeY > 1) config["sizeY"] = sizeY;
     }
      
      void setStatus(StatusIcon i, CardVariant v, const String& lbl, const String& msg) {
@@ -333,6 +342,8 @@ public:
         config["title"] = title;
         config["chartType"] = chartTypeToString(chartType);
         config["color"] = variantToString(variant);
+        if (sizeX > 1) config["sizeX"] = sizeX;
+        if (sizeY > 1) config["sizeY"] = sizeY;
         
         // Multi-series data
         if (series.size() > 0) {
@@ -417,6 +428,8 @@ public:
         config["label"] = label;
         config["variant"] = variantToString(variant);
         if (icon.length() > 0) config["icon"] = icon;
+        if (sizeX > 1) config["sizeX"] = sizeX;
+        if (sizeY > 1) config["sizeY"] = sizeY;
     }
      
      void handleAction(const String& action, JsonObject& data) override {
@@ -452,6 +465,8 @@ public:
         config["target"] = target;
         config["variant"] = variantToString(variant);
         if (icon.length() > 0) config["icon"] = icon;
+        if (sizeX > 1) config["sizeX"] = sizeX;
+        if (sizeY > 1) config["sizeY"] = sizeY;
     }
      
      void setTarget(const String& t) { target = t; }
@@ -482,6 +497,8 @@ public:
         config["label"] = label;
         config["value"] = value;
         config["variant"] = variantToString(variant);
+        if (sizeX > 1) config["sizeX"] = sizeX;
+        if (sizeY > 1) config["sizeY"] = sizeY;
     }
      
      void handleAction(const String& action, JsonObject& data) override {
@@ -521,6 +538,8 @@ public:
         config["includeTime"] = includeTime;
         if (minDate.length() > 0) config["min"] = minDate;
         if (maxDate.length() > 0) config["max"] = maxDate;
+        if (sizeX > 1) config["sizeX"] = sizeX;
+        if (sizeY > 1) config["sizeY"] = sizeY;
     }
      
      void handleAction(const String& action, JsonObject& data) override {
@@ -564,6 +583,8 @@ public:
         config["confirmMessage"] = confirmMessage;
         config["variant"] = variantToString(variant);
         if (icon.length() > 0) config["icon"] = icon;
+        if (sizeX > 1) config["sizeX"] = sizeX;
+        if (sizeY > 1) config["sizeY"] = sizeY;
     }
      
      void handleAction(const String& action, JsonObject& data) override {
@@ -607,6 +628,8 @@ public:
             config["max"] = max;
             config["step"] = step;
         }
+        if (sizeX > 1) config["sizeX"] = sizeX;
+        if (sizeY > 1) config["sizeY"] = sizeY;
     }
      
      void handleAction(const String& action, JsonObject& data) override {
@@ -658,6 +681,8 @@ public:
         for (const String& preset : presets) {
             presetsArr.add(preset);
         }
+        if (sizeX > 1) config["sizeX"] = sizeX;
+        if (sizeY > 1) config["sizeY"] = sizeY;
     }
      
      void handleAction(const String& action, JsonObject& data) override {
@@ -700,6 +725,8 @@ public:
             optObj["value"] = opt.value;
             optObj["label"] = opt.label;
         }
+        if (sizeX > 1) config["sizeX"] = sizeX;
+        if (sizeY > 1) config["sizeY"] = sizeY;
     }
      
      void handleAction(const String& action, JsonObject& data) override {
@@ -738,6 +765,8 @@ public:
         config["title"] = title;
         config["label"] = label;
         config["value"] = value;
+        if (sizeX > 1) config["sizeX"] = sizeX;
+        if (sizeY > 1) config["sizeY"] = sizeY;
     }
      
      void handleAction(const String& action, JsonObject& data) override {
@@ -776,6 +805,8 @@ public:
         config["max"] = max;
         config["step"] = step;
         config["unit"] = unit;
+        if (sizeX > 1) config["sizeX"] = sizeX;
+        if (sizeY > 1) config["sizeY"] = sizeY;
     }
      
      void handleAction(const String& action, JsonObject& data) override {
@@ -818,6 +849,8 @@ public:
         JsonObject thresholds = config.createNestedObject("thresholds");
         thresholds["warning"] = warningThreshold;
         thresholds["danger"] = dangerThreshold;
+        if (sizeX > 1) config["sizeX"] = sizeX;
+        if (sizeY > 1) config["sizeY"] = sizeY;
     }
      
      void setValue(float val) { value = constrain(val, min, max); }

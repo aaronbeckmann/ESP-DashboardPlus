@@ -510,13 +510,43 @@
     
     /* Chart Card */
     .chart-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
-    .chart-container { height: 140px; position: relative; }
+    .chart-wrapper { position: relative; }
+    .chart-container { height: 120px; position: relative; margin-left: 36px; margin-bottom: 20px; }
     .chart-svg { width: 100%; height: 100%; }
+    
+    .chart-y-axis {
+      position: absolute;
+      left: 0;
+      top: 0;
+      bottom: 20px;
+      width: 32px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      font-size: 0.6rem;
+      font-family: 'JetBrains Mono', monospace;
+      color: var(--text-muted);
+      text-align: right;
+      padding-right: 4px;
+    }
+    
+    .chart-x-axis {
+      position: absolute;
+      left: 36px;
+      right: 0;
+      bottom: 0;
+      height: 16px;
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.6rem;
+      font-family: 'JetBrains Mono', monospace;
+      color: var(--text-muted);
+    }
     
     .chart-path {
       fill: none;
       stroke: var(--primary);
-      stroke-width: 2.5;
+      stroke-width: 1;
       stroke-linecap: round;
       stroke-linejoin: round;
       filter: drop-shadow(0 0 8px var(--primary-glow));
@@ -1283,8 +1313,11 @@
         grid-template-columns: 1fr; 
         gap: 16px;
       }
-      .grid .card[style*="grid-column: span 2"] {
+      .grid .card[style*="grid-column: span"] {
         grid-column: span 1 !important;
+      }
+      .grid .card[style*="grid-row: span"] {
+        grid-row: span 1 !important;
       }
       .header-content { flex-direction: column; gap: 16px; align-items: stretch; }
       .status { justify-content: center; }
@@ -1802,13 +1835,23 @@
       initializeCards();
     }
 
+    function getCardSizeStyle(config) {
+      const sizeX = config.sizeX || 1;
+      const sizeY = config.sizeY || 1;
+      let style = '';
+      if (sizeX > 1) style += `grid-column: span ${sizeX};`;
+      if (sizeY > 1) style += `grid-row: span ${sizeY};`;
+      return style;
+    }
+
     function renderCard(card) {
       const { id, type, config } = card;
-      
+      const sizeStyle = getCardSizeStyle(config);
+
       switch (type) {
         case 'stat':
           return `
-            <div class="card" data-id="${id}"><div class="update-indicator"></div>
+            <div class="card" data-id="${id}" style="${sizeStyle}"><div class="update-indicator"></div>
               <div class="card-title">${config.title || 'Value'}</div>
               <div>
                 <span class="stat-value">${config.value || 0}</span>
@@ -1821,7 +1864,7 @@
         case 'status':
           const iconMap = { wifi: '📶', check: '✓', error: '✕', warning: '⚠', info: 'ℹ', power: '⚡', sync: '🔄', cloud: '☁', lock: '🔒', unlock: '🔓' };
           return `
-            <div class="card" data-id="${id}"><div class="update-indicator"></div>
+            <div class="card" data-id="${id}" style="${sizeStyle}"><div class="update-indicator"></div>
               <div class="card-title">${config.title || 'Status'}</div>
               <div class="status-card">
                 <div class="status-icon ${config.variant || 'primary'}">
@@ -1836,8 +1879,9 @@
           `;
           
         case 'chart':
+          const chartAxisData = getChartAxisData(config);
           return `
-            <div class="card" data-id="${id}"><div class="update-indicator"></div>
+            <div class="card" data-id="${id}" style="${sizeStyle}"><div class="update-indicator"></div>
               <div class="chart-header">
                 <div class="card-title">${config.title || 'Chart'}</div>
                 <div style="display:flex;gap:8px;align-items:center">
@@ -1846,20 +1890,30 @@
                 </div>
               </div>
               ${renderChartLegend(config)}
-              <div class="chart-container">
-                <svg class="chart-svg" viewBox="0 0 100 70" preserveAspectRatio="none">
-                  <defs>
-                    ${renderChartGradients(id, config)}
-                  </defs>
-                  ${renderChartContent(id, config)}
-                </svg>
+              <div class="chart-wrapper">
+                <div class="chart-y-axis">
+                  <span>${chartAxisData.maxLabel}</span>
+                  <span>${chartAxisData.midLabel}</span>
+                  <span>${chartAxisData.minLabel}</span>
+                </div>
+                <div class="chart-container">
+                  <svg class="chart-svg" viewBox="0 0 100 70" preserveAspectRatio="none">
+                    <defs>
+                      ${renderChartGradients(id, config)}
+                    </defs>
+                    ${renderChartContent(id, config)}
+                  </svg>
+                </div>
+                <div class="chart-x-axis">
+                  ${chartAxisData.xLabels.map(l => `<span>${l}</span>`).join('')}
+                </div>
               </div>
             </div>
           `;
           
         case 'button':
           return `
-            <div class="card" data-id="${id}"><div class="update-indicator"></div>
+            <div class="card" data-id="${id}" style="${sizeStyle}"><div class="update-indicator"></div>
               <div class="card-title">${config.title || 'Button'}</div>
               <button class="btn btn-${config.variant || 'primary'}" onclick="sendAction('${id}', 'click')">
                 ${config.icon ? `<span>${config.icon}</span>` : ''}
@@ -1870,7 +1924,7 @@
           
         case 'link':
           return `
-            <div class="card" data-id="${id}"><div class="update-indicator"></div>
+            <div class="card" data-id="${id}" style="${sizeStyle}"><div class="update-indicator"></div>
               <div class="card-title">${config.title || 'Link'}</div>
               <a href="${config.url || '#'}" target="${config.target || '_blank'}" class="btn btn-${config.variant || 'primary'}" ${config.url ? '' : 'onclick="event.preventDefault()"'}>
                 ${config.icon ? `<span>${config.icon}</span>` : ''}
@@ -1882,7 +1936,7 @@
           
         case 'timezone':
           return `
-            <div class="card" data-id="${id}"><div class="update-indicator"></div>
+            <div class="card" data-id="${id}" style="${sizeStyle}"><div class="update-indicator"></div>
               <div class="card-title">${config.title || 'Timezone'}</div>
               <div style="margin-bottom:12px">
                 <span class="stat-value" style="font-size:1.25rem" id="tz-display-${id}">${config.value || 'Not set'}</span>
@@ -1896,7 +1950,7 @@
           
         case 'date':
           return `
-            <div class="card" data-id="${id}"><div class="update-indicator"></div>
+            <div class="card" data-id="${id}" style="${sizeStyle}"><div class="update-indicator"></div>
               <div class="card-title">${config.title || 'Date'}</div>
               <input type="${config.includeTime ? 'datetime-local' : 'date'}" class="date-input" id="date-${id}" value="${config.value || ''}" onchange="changeDate('${id}', this.value)" ${config.min ? `min="${config.min}"` : ''} ${config.max ? `max="${config.max}"` : ''}>
             </div>
@@ -1904,7 +1958,7 @@
           
         case 'toggle':
           return `
-            <div class="card" data-id="${id}"><div class="update-indicator"></div>
+            <div class="card" data-id="${id}" style="${sizeStyle}"><div class="update-indicator"></div>
               <div class="toggle-container">
                 <div>
                   <div class="card-title">${config.title || 'Toggle'}</div>
@@ -1920,7 +1974,7 @@
         case 'slider':
           const pct = ((config.value - (config.min || 0)) / ((config.max || 100) - (config.min || 0))) * 100;
           return `
-            <div class="card" data-id="${id}">
+            <div class="card" data-id="${id}" style="${sizeStyle}">
               <div class="slider-header">
                 <div class="card-title">${config.title || 'Slider'}</div>
                 <div><span class="slider-value">${config.value || 0}</span><span class="stat-unit">${config.unit || ''}</span></div>
@@ -1938,7 +1992,7 @@
           
         case 'input':
           return `
-            <div class="card" data-id="${id}">
+            <div class="card" data-id="${id}" style="${sizeStyle}">
               <div class="card-title">${config.title || 'Input'}</div>
               <div class="input-group">
                 <input type="${config.inputType || 'text'}" class="input" placeholder="${config.placeholder || ''}" value="${config.value || ''}" id="input-${id}" ${config.inputType === 'number' ? `min="${config.min || ''}" max="${config.max || ''}" step="${config.step || 1}"` : ''}>
@@ -1954,7 +2008,7 @@
           
         case 'color':
           return `
-            <div class="card" data-id="${id}">
+            <div class="card" data-id="${id}" style="${sizeStyle}">
               <div class="card-title">${config.title || 'Color'}</div>
               <div class="color-row">
                 <div class="color-preview" style="background:${config.value || '#00D4AA'};box-shadow:0 4px 24px ${config.value || '#00D4AA'}50"></div>
@@ -1972,7 +2026,7 @@
         case 'dropdown':
           const selectedOpt = (config.options || []).find(o => o.value === config.value);
           return `
-            <div class="card" data-id="${id}">
+            <div class="card" data-id="${id}" style="${sizeStyle}">
               <div class="card-title">${config.title || 'Select'}</div>
               <div class="dropdown" id="dropdown-${id}">
                 <div class="dropdown-trigger" onclick="toggleDropdown('${id}')">
@@ -1993,7 +2047,7 @@
           
         case 'action':
           return `
-            <div class="card" data-id="${id}">
+            <div class="card" data-id="${id}" style="${sizeStyle}">
               <div class="card-title">${config.title || 'Action'}</div>
               <button class="btn btn-${config.variant || 'warning'}" onclick="showConfirmModal('${id}', '${(config.confirmTitle || 'Confirm').replace(/'/g, "\\'")}', '${(config.confirmMessage || 'Are you sure?').replace(/'/g, "\\'")}')">
                 ${config.icon ? `<span>${config.icon}</span>` : ''}
@@ -2010,7 +2064,7 @@
           const gaugeColor = config.value >= (config.thresholds?.danger || 90) ? 'var(--danger)' : 
                             config.value >= (config.thresholds?.warning || 70) ? 'var(--warning)' : 'var(--primary)';
           return `
-            <div class="card" data-id="${id}">
+            <div class="card" data-id="${id}" style="${sizeStyle}">
               <div class="card-title" style="text-align:center">${config.title || 'Gauge'}</div>
               <div class="gauge-container">
                 <svg class="gauge-svg" viewBox="0 0 200 120">
@@ -2036,10 +2090,63 @@
           return ''; // These card types are only available as tabs
           
         default:
-          return `<div class="card" data-id="${id}"><div class="card-title">Unknown: ${type}</div></div>`;
+          return `<div class="card" data-id="${id}" style="${sizeStyle}"><div class="card-title">Unknown: ${type}</div></div>`;
       }
     }
 
+    function getChartAxisData(config) {
+      const series = config.series || [];
+      const legacyData = config.data || [];
+      
+      let allSeries = [];
+      if (series.length > 0) {
+        allSeries = series;
+      } else if (legacyData.length > 0) {
+        allSeries = [{ name: '', color: config.color || 'primary', data: legacyData }];
+      }
+      
+      // Find global min/max
+      let globalMin = Infinity, globalMax = -Infinity;
+      let maxDataPoints = 0;
+      allSeries.forEach(s => {
+        maxDataPoints = Math.max(maxDataPoints, s.data.length);
+        s.data.forEach(v => {
+          if (v < globalMin) globalMin = v;
+          if (v > globalMax) globalMax = v;
+        });
+      });
+      
+      if (!isFinite(globalMin)) globalMin = 0;
+      if (!isFinite(globalMax)) globalMax = 100;
+      
+      // Format axis values
+      const formatVal = (v) => {
+        if (Math.abs(v) >= 1000) return (v / 1000).toFixed(1) + 'k';
+        if (Math.abs(v) >= 1) return v.toFixed(1);
+        return v.toFixed(2);
+      };
+      
+      // X-axis time labels (N-Ns format)
+      const xLabels = [];
+      const numLabels = Math.min(5, maxDataPoints);
+      if (maxDataPoints > 1) {
+        for (let i = 0; i < numLabels; i++) {
+          const idx = Math.floor(i * (maxDataPoints - 1) / (numLabels - 1));
+          const offset = maxDataPoints - 1 - idx;
+          xLabels.push(offset === 0 ? 'N' : `N-${offset}`);
+        }
+      } else {
+        xLabels.push('N');
+      }
+      
+      return {
+        minLabel: formatVal(globalMin),
+        maxLabel: formatVal(globalMax),
+        midLabel: formatVal((globalMin + globalMax) / 2),
+        xLabels: xLabels
+      };
+    }
+    
     function renderChartContent(id, config) {
       const series = config.series || [];
       const legacyData = config.data || [];
@@ -2131,7 +2238,7 @@
           
           // Round points
           points.forEach(p => {
-            svg += `<circle class="chart-point" cx="${p.x}" cy="${p.y}" r="3" style="fill:${color}"/>`;
+            svg += `<circle class="chart-point" cx="${p.x}" cy="${p.y}" r="1.5" style="fill:${color}"/>`;
           });
         }
       });
@@ -2219,9 +2326,22 @@
           case 'chart': {
             const container = el.querySelector('.chart-container');
             const legendEl = el.querySelector('.chart-legend');
+            const yAxisEl = el.querySelector('.chart-y-axis');
+            const xAxisEl = el.querySelector('.chart-x-axis');
+            
             if (container) {
               container.innerHTML = `<svg class="chart-svg" viewBox="0 0 100 70" preserveAspectRatio="none"><defs>${renderChartGradients(id, card.config)}</defs>${renderChartContent(id, card.config)}</svg>`;
             }
+            
+            // Update axis labels
+            const axisData = getChartAxisData(card.config);
+            if (yAxisEl) {
+              yAxisEl.innerHTML = `<span>${axisData.maxLabel}</span><span>${axisData.midLabel}</span><span>${axisData.minLabel}</span>`;
+            }
+            if (xAxisEl) {
+              xAxisEl.innerHTML = axisData.xLabels.map(l => `<span>${l}</span>`).join('');
+            }
+            
             // Update legend if multi-series
             const newLegend = renderChartLegend(card.config);
             if (newLegend && !legendEl) {
