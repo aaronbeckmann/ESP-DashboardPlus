@@ -22,7 +22,11 @@ A real-time, on-device web dashboard library for ESP32 microcontrollers. Create 
 - **🗂️ Tabbed Interface** - Dashboard, Console, and OTA tabs in a single HTML file
 - **🔄 OTA Updates** - Dedicated firmware update tab with device info
 - **📝 Console Logging** - Full-page console tab with filtering, export, and command input
-- **⚡ Optimized** - Gzip-compressed HTML stored in PROGMEM (~18KB)
+- **⚡ Optimized** - Gzip-compressed HTML stored in PROGMEM (~20KB)
+- **📈 Multi-Series Charts** - Display multiple data lines per chart with legends
+- **📦 Card Groups** - Organize cards into collapsible groups with headers
+- **⚖️ Card Ordering** - Control display order with weight property
+- **📐 Card Sizing** - Span cards across multiple grid columns/rows
 - **🛠️ Easy Integration** - Simple C++ API with minimal boilerplate
 
 > **Note**: OTA and Console are available as **tabs only**, not dashboard cards. Configure visibility with `enableOTA` and `enableConsole` parameters in `begin()`.
@@ -42,7 +46,7 @@ Add to your `platformio.ini`:
 
 ```ini
 lib_deps = 
-    aaronbeckmann/ESP-DashboardPlus@^1.0.0
+    ESP-DashboardPlus
 ```
 
 Or install via PlatformIO CLI:
