@@ -6,13 +6,148 @@ nav_order: 3
 
 # Cards Reference
 
-ESP DashboardPlus provides 14 different card types for building your dashboard. The dashboard features a **tabbed interface** with three main sections:
+ESP DashboardPlus provides 16 different card types for building your dashboard. The dashboard features a **tabbed interface** with three main sections:
 
 - **Dashboard** - Main view with all your sensor cards and controls
 - **Console** - Full-page console with log filtering, export, and command input (tab only)
 - **OTA Update** - Dedicated firmware update page with device info (tab only)
 
 > **Note**: OTA and Console are available as **tabs only**, not dashboard cards. Use `enableOTA` and `enableConsole` in `begin()` to control visibility.
+
+---
+
+## Card Grouping
+
+Cards can be organized into visual groups with section headers. If no groups are defined, all cards are displayed in a single flat grid without section headers.
+
+### Creating Groups
+
+```cpp
+// Create a group and add cards to it
+dashboard.addGroup("sensors", "Sensor Data");
+dashboard.addCardToGroup("sensors", "temp");
+dashboard.addCardToGroup("sensors", "humidity");
+
+// Or create with initial cards
+dashboard.addGroup("controls", "Device Controls", {"led", "brightness", "fan"});
+```
+
+### Group Methods
+
+| Method | Parameters | Description |
+|--------|------------|-------------|
+| `addGroup()` | `id, title` | Create an empty group with a section title |
+| `addGroup()` | `id, title, {cardIds...}` | Create a group with initial cards |
+| `addCardToGroup()` | `groupId, cardId` | Add a card to an existing group |
+| `removeCardFromGroup()` | `groupId, cardId` | Remove a card from a group |
+| `removeGroup()` | `id` | Remove a group (cards remain, just ungrouped) |
+
+### Behavior
+
+- **With groups**: Cards in groups appear under their section headers; ungrouped cards appear under "Other"
+- **Without groups**: All cards appear in a single grid with no section headers
+
+---
+
+## Card Sizing
+
+Cards can span multiple grid columns and/or rows using the `setSize()`, `setSizeX()`, and `setSizeY()` methods. Default size is 1×1. On mobile screens (<640px), cards automatically resize to 1×1 for optimal display.
+
+### Setting Card Size
+
+```cpp
+// Span 2 columns, 1 row (wide card)
+ChartCard* wideChart = dashboard.addChartCard("chart", "Wide Chart", ChartType::LINE, 20);
+wideChart->setSize(2, 1);
+
+// Span 1 column, 2 rows (tall card)
+GaugeCard* tallGauge = dashboard.addGaugeCard("gauge", "Tall Gauge", 0, 100, "%");
+tallGauge->setSizeY(2);
+
+// Span 2 columns, 2 rows (large card)
+ChartCard* largeChart = dashboard.addChartCard("large-chart", "Large Chart", ChartType::AREA, 30);
+largeChart->setSize(2, 2);
+```
+
+### Size Methods
+
+| Method | Parameters | Description |
+|--------|------------|-------------|
+| `setSize()` | `int x, int y` | Set both column and row span |
+| `setSizeX()` | `int x` | Set column span only |
+| `setSizeY()` | `int y` | Set row span only |
+
+### Example
+
+```cpp
+// Create a dashboard with mixed card sizes
+ChartCard* tempChart = dashboard.addChartCard("temp-chart", "Temperature History", ChartType::LINE, 30);
+tempChart->setSize(2, 1);  // Wide chart spanning 2 columns
+
+StatCard* temp = dashboard.addStatCard("temp", "Temperature", "23.5", "°C");
+// Default 1x1 size
+
+StatCard* humidity = dashboard.addStatCard("humidity", "Humidity", "65", "%");
+// Default 1x1 size
+
+GaugeCard* cpu = dashboard.addGaugeCard("cpu", "CPU Usage", 0, 100, "%");
+cpu->setSize(1, 2);  // Tall gauge spanning 2 rows
+```
+
+---
+
+## Card Ordering (Weight)
+
+Cards are displayed in ascending order by weight within their group (or globally if no groups). Lower weight values appear first. Default weight is 0.
+
+### Setting Weight
+
+```cpp
+// Set weight directly on the card
+StatCard* temp = dashboard.addStatCard("temp", "Temperature", "23.5", "°C");
+temp->setWeight(10);  // Appears after cards with weight < 10
+
+// Create cards with different weights for ordering
+dashboard.addStatCard("humidity", "Humidity", "65", "%")->setWeight(20);
+dashboard.addStatCard("pressure", "Pressure", "1013", "hPa")->setWeight(30);
+```
+
+### Weight Methods
+
+| Method | Parameters | Description |
+|--------|------------|-------------|
+| `setWeight()` | `int weight` | Set the display order weight |
+| `getWeight()` | - | Get the current weight value |
+
+### Example with Groups and Weights
+
+```cpp
+// Create groups
+dashboard.addGroup("sensors", "Sensor Data");
+dashboard.addGroup("controls", "Controls");
+
+// Add cards with weights (lower = first)
+auto* temp = dashboard.addStatCard("temp", "Temperature", "23.5", "°C");
+temp->setWeight(10);
+
+auto* humidity = dashboard.addStatCard("humidity", "Humidity", "65", "%");
+humidity->setWeight(20);
+
+auto* led = dashboard.addToggleCard("led", "LED", "Enable", false);
+led->setWeight(10);
+
+auto* brightness = dashboard.addSliderCard("brightness", "Brightness", 0, 100);
+brightness->setWeight(20);
+
+// Add to groups
+dashboard.addCardToGroup("sensors", "temp");
+dashboard.addCardToGroup("sensors", "humidity");
+dashboard.addCardToGroup("controls", "led");
+dashboard.addCardToGroup("controls", "brightness");
+
+// Result: Within "Sensor Data": temp (10), humidity (20)
+//         Within "Controls": led (10), brightness (20)
+```
 
 ## Tab Configuration
 
@@ -173,14 +308,14 @@ dashboard.updateGaugeCard("cpu", 72);
 
 ## ChartCard
 
-Displays a time-series chart with multiple chart type options.
+Displays a time-series chart with multiple chart type options. Supports both single-series and multi-series data.
 
 ### Visual Representation
 
 ```
 ┌─────────────────────────────────────┐
 │  Temperature History                │
-│                                     │
+│  ● Indoor  ● Outdoor                │
 │     25 ┤      ●                     │
 │     24 ┤   ●     ●    ●             │
 │     23 ┤ ●         ●     ●          │
@@ -199,7 +334,7 @@ Displays a time-series chart with multiple chart type options.
 | `SCATTER` | Scatter plot with round points |
 | `STEP` | Step/staircase line chart |
 
-### Example
+### Single-Series Example
 
 ```cpp
 ChartCard* tempChart = dashboard.addChartCard(
@@ -214,6 +349,32 @@ tempChart->setVariant(CardVariant::PRIMARY);
 dashboard.updateChartCard("temp-chart", 23.5);
 dashboard.updateChartCard("temp-chart", 24.0);
 ```
+
+### Multi-Series Example
+
+```cpp
+ChartCard* multiChart = dashboard.addChartCard(
+    "multi-chart",
+    "Indoor vs Outdoor",
+    ChartType::LINE,
+    30
+);
+
+// Add series with name and color
+multiChart->addSeries("Indoor", "#00D4AA");   // Series 0
+multiChart->addSeries("Outdoor", "#3B82F6");  // Series 1
+
+// Update specific series by index
+dashboard.updateChartCard("multi-chart", 0, 22.5);  // Indoor
+dashboard.updateChartCard("multi-chart", 1, 18.2);  // Outdoor
+```
+
+### Series Methods
+
+| Method | Parameters | Description |
+|--------|------------|-------------|
+| `addSeries()` | `name, color` | Add a new data series with name and hex color |
+| `addDataPoint()` | `seriesIndex, value` | Add data point to specific series |
 
 ---
 
@@ -442,6 +603,48 @@ alarmTime->setCallback([](const String& value) {
 ```
 
 ---
+
+## TimeCard
+
+Time picker (HH:MM or HH:MM:SS format).
+
+### Example
+
+```cpp
+// Time only (HH:MM)
+TimeCard* wakeTime = dashboard.addTimeCard(
+    "wake", "Wake Time", false
+);
+
+// With seconds (HH:MM:SS)
+TimeCard* preciseTime = dashboard.addTimeCard(
+    "precise", "Precise Time", true
+);
+preciseTime->setCallback([](const String& value) {
+    Serial.printf("Time selected: %s\n", value.c_str());
+});
+```
+
+---
+
+## LocationCard
+
+Browser geolocation picker for latitude/longitude.
+
+### Example
+
+```cpp
+LocationCard* locCard = dashboard.addLocationCard(
+    "location", "Device Location", "Get Current Location"
+);
+
+locCard->setCallback([](float lat, float lon) {
+    Serial.printf("Location: %.6f, %.6f\n", lat, lon);
+});
+
+// Programmatic update
+dashboard.updateLocationCard("location", 51.5074, -0.1278);
+```
 
 ## TimezoneCard
 

@@ -48,35 +48,39 @@
  class ESPDashboardPlus;
  class DashboardCard;
  
- // Callback types
- typedef std::function<void()> ButtonCallback;
- typedef std::function<void(const String&)> InputCallback;
- typedef std::function<void(bool)> ToggleCallback;
- typedef std::function<void(int)> SliderCallback;
- typedef std::function<void(const String&)> ColorCallback;
- typedef std::function<void(const String&)> DropdownCallback;
- typedef std::function<void(const String&, int, const String&)> TimezoneCallback;
- typedef std::function<void(const String&)> DateCallback;
+// Callback types
+typedef std::function<void()> ButtonCallback;
+typedef std::function<void(const String&)> InputCallback;
+typedef std::function<void(bool)> ToggleCallback;
+typedef std::function<void(int)> SliderCallback;
+typedef std::function<void(const String&)> ColorCallback;
+typedef std::function<void(const String&)> DropdownCallback;
+typedef std::function<void(const String&, int, const String&)> TimezoneCallback;
+typedef std::function<void(const String&)> DateCallback;
+typedef std::function<void(const String&)> TimeCallback;
+typedef std::function<void(float, float)> LocationCallback;
  
- // Card types
- enum class CardType {
-     STAT,
-     CHART,
-     BUTTON,
-     ACTION,
-     DATA_INPUT,
-     COLOR,
-     DROPDOWN,
-     OTA,
-     GAUGE,
-     TOGGLE,
-     SLIDER,
-     LINK,
-     TIMEZONE,
-     DATE,
-     STATUS,
-     CONSOLE
- };
+// Card types
+enum class CardType {
+    STAT,
+    CHART,
+    BUTTON,
+    ACTION,
+    DATA_INPUT,
+    COLOR,
+    DROPDOWN,
+    OTA,
+    GAUGE,
+    TOGGLE,
+    SLIDER,
+    LINK,
+    TIMEZONE,
+    DATE,
+    TIME,
+    LOCATION,
+    STATUS,
+    CONSOLE
+};
  
  // Log levels for console
  enum class LogLevel {
@@ -135,22 +139,30 @@
  /**
   * Dashboard Card Base Class
   */
- class DashboardCard {
- public:
-     String id;
-     CardType type;
-     String title;
-     CardVariant variant;
-     
-     DashboardCard(const String& id, CardType type, const String& title)
-         : id(id), type(type), title(title), variant(CardVariant::PRIMARY) {}
+class DashboardCard {
+public:
+    String id;
+    CardType type;
+    String title;
+    CardVariant variant;
+    int weight;  // Lower weight = shown first (default: 0)
+    int sizeX;   // Grid column span (default: 1)
+    int sizeY;   // Grid row span (default: 1)
+    
+    DashboardCard(const String& id, CardType type, const String& title)
+        : id(id), type(type), title(title), variant(CardVariant::PRIMARY), weight(0), sizeX(1), sizeY(1) {}
      
      virtual ~DashboardCard() {}
      
      virtual void toJson(JsonObject& card) = 0;
      virtual void handleAction(const String& action, JsonObject& data) {}
      
-     void setVariant(CardVariant v) { variant = v; }
+    void setVariant(CardVariant v) { variant = v; }
+    void setWeight(int w) { weight = w; }
+    int getWeight() const { return weight; }
+    void setSize(int x, int y) { sizeX = x; sizeY = y; }
+    void setSizeX(int x) { sizeX = x; }
+    void setSizeY(int y) { sizeY = y; }
      
      // Public access for update helpers
      String getVariantString() { return variantToString(variant); }
@@ -184,6 +196,8 @@
              case CardType::LINK: return "link";
              case CardType::TIMEZONE: return "timezone";
              case CardType::DATE: return "date";
+             case CardType::TIME: return "time";
+             case CardType::LOCATION: return "location";
              case CardType::STATUS: return "status";
              case CardType::CONSOLE: return "console";
              default: return "stat";
@@ -240,19 +254,22 @@
      StatCard(const String& id, const String& title, const String& value = "", const String& unit = "")
          : DashboardCard(id, CardType::STAT, title), value(value), unit(unit) {}
      
-     void toJson(JsonObject& card) override {
-         card["id"] = id;
-         card["type"] = typeToString(type);
-         JsonObject config = card.createNestedObject("config");
-         config["title"] = title;
-         config["value"] = value;
-         config["unit"] = unit;
-         config["color"] = variantToString(variant);
-         if (trend.length() > 0) {
-             config["trend"] = trend;
-             config["trendValue"] = trendValue;
-         }
-     }
+    void toJson(JsonObject& card) override {
+        card["id"] = id;
+        card["type"] = typeToString(type);
+        card["weight"] = weight;
+        JsonObject config = card.createNestedObject("config");
+        config["title"] = title;
+        config["value"] = value;
+        config["unit"] = unit;
+        config["color"] = variantToString(variant);
+        if (sizeX > 1) config["sizeX"] = sizeX;
+        if (sizeY > 1) config["sizeY"] = sizeY;
+        if (trend.length() > 0) {
+            config["trend"] = trend;
+            config["trendValue"] = trendValue;
+        }
+    }
      
      void setValue(const String& val) { value = val; }
      void setTrend(const String& t, const String& val) { trend = t; trendValue = val; }
@@ -270,16 +287,19 @@
      StatusCard(const String& id, const String& title, StatusIcon icon = StatusIcon::INFO)
          : DashboardCard(id, CardType::STATUS, title), icon(icon) {}
      
-     void toJson(JsonObject& card) override {
-         card["id"] = id;
-         card["type"] = typeToString(type);
-         JsonObject config = card.createNestedObject("config");
-         config["title"] = title;
-         config["icon"] = iconToString(icon);
-         config["variant"] = variantToString(variant);
-         config["label"] = label;
-         config["message"] = message;
-     }
+    void toJson(JsonObject& card) override {
+        card["id"] = id;
+        card["type"] = typeToString(type);
+        card["weight"] = weight;
+        JsonObject config = card.createNestedObject("config");
+        config["title"] = title;
+        config["icon"] = iconToString(icon);
+        config["variant"] = variantToString(variant);
+        config["label"] = label;
+        config["message"] = message;
+        if (sizeX > 1) config["sizeX"] = sizeX;
+        if (sizeY > 1) config["sizeY"] = sizeY;
+    }
      
      void setStatus(StatusIcon i, CardVariant v, const String& lbl, const String& msg) {
          icon = i;
@@ -293,41 +313,105 @@
      void setIcon(StatusIcon i) { icon = i; }
  };
  
- /**
-  * Chart Card - Display a line/area/bar/scatter/step chart
-  */
- class ChartCard : public DashboardCard {
- public:
-     std::vector<float> data;
-     ChartType chartType;
-     int maxDataPoints;
-     
-     ChartCard(const String& id, const String& title, ChartType type = ChartType::LINE, int maxPoints = 20)
-         : DashboardCard(id, CardType::CHART, title), chartType(type), maxDataPoints(maxPoints) {}
-     
-     void toJson(JsonObject& card) override {
-         card["id"] = id;
-         card["type"] = typeToString(type);
-         JsonObject config = card.createNestedObject("config");
-         config["title"] = title;
-         config["chartType"] = chartTypeToString(chartType);
-         config["color"] = variantToString(variant);
-         JsonArray dataArr = config.createNestedArray("data");
-         for (float val : data) {
-             dataArr.add(val);
-         }
-     }
-     
-     void addDataPoint(float val) {
-         data.push_back(val);
-         if (data.size() > maxDataPoints) {
-             data.erase(data.begin());
-         }
-     }
-     
-     void setChartType(ChartType t) { chartType = t; }
-     void clearData() { data.clear(); }
- };
+/**
+ * Chart Series - A single data series for multi-line charts
+ */
+struct ChartSeries {
+    String name;
+    String color; // "primary", "success", "warning", "danger", "info"
+    std::vector<float> data;
+    
+    ChartSeries(const String& name = "", const String& color = "primary")
+        : name(name), color(color) {}
+};
+
+/**
+ * Chart Card - Display a line/area/bar/scatter/step chart with multiple series
+ */
+class ChartCard : public DashboardCard {
+public:
+    std::vector<ChartSeries> series;
+    ChartType chartType;
+    int maxDataPoints;
+    
+    // Legacy single-series data (for backwards compatibility)
+    std::vector<float> data;
+    
+    ChartCard(const String& id, const String& title, ChartType type = ChartType::LINE, int maxPoints = 20)
+        : DashboardCard(id, CardType::CHART, title), chartType(type), maxDataPoints(maxPoints) {}
+    
+    void toJson(JsonObject& card) override {
+        card["id"] = id;
+        card["type"] = typeToString(type);
+        card["weight"] = weight;
+        JsonObject config = card.createNestedObject("config");
+        config["title"] = title;
+        config["chartType"] = chartTypeToString(chartType);
+        config["color"] = variantToString(variant);
+        if (sizeX > 1) config["sizeX"] = sizeX;
+        if (sizeY > 1) config["sizeY"] = sizeY;
+        
+        // Multi-series data
+        if (series.size() > 0) {
+            JsonArray seriesArr = config.createNestedArray("series");
+            for (const ChartSeries& s : series) {
+                JsonObject seriesObj = seriesArr.createNestedObject();
+                seriesObj["name"] = s.name;
+                seriesObj["color"] = s.color;
+                JsonArray dataArr = seriesObj.createNestedArray("data");
+                for (float val : s.data) {
+                    dataArr.add(val);
+                }
+            }
+        } else {
+            // Legacy single-series format
+            JsonArray dataArr = config.createNestedArray("data");
+            for (float val : data) {
+                dataArr.add(val);
+            }
+        }
+    }
+    
+    // Add a new series to the chart
+    int addSeries(const String& name, const String& color = "primary") {
+        series.push_back(ChartSeries(name, color));
+        return series.size() - 1;
+    }
+    
+    // Add data point to a specific series
+    void addDataPoint(int seriesIndex, float val) {
+        if (seriesIndex < 0 || seriesIndex >= (int)series.size()) return;
+        series[seriesIndex].data.push_back(val);
+        if (series[seriesIndex].data.size() > maxDataPoints) {
+            series[seriesIndex].data.erase(series[seriesIndex].data.begin());
+        }
+    }
+    
+    // Legacy: Add data point to single-series (backwards compatible)
+    void addDataPoint(float val) {
+        data.push_back(val);
+        if (data.size() > maxDataPoints) {
+            data.erase(data.begin());
+        }
+    }
+    
+    // Clear a specific series
+    void clearSeries(int seriesIndex) {
+        if (seriesIndex >= 0 && seriesIndex < (int)series.size()) {
+            series[seriesIndex].data.clear();
+        }
+    }
+    
+    // Clear all series
+    void clearAllSeries() {
+        for (auto& s : series) {
+            s.data.clear();
+        }
+    }
+    
+    void setChartType(ChartType t) { chartType = t; }
+    void clearData() { data.clear(); }
+};
  
  /**
   * Button Card - Simple clickable button
@@ -341,15 +425,18 @@
      ButtonCardImpl(const String& id, const String& title, const String& label, ButtonCallback cb)
          : DashboardCard(id, CardType::BUTTON, title), label(label), callback(cb) {}
      
-     void toJson(JsonObject& card) override {
-         card["id"] = id;
-         card["type"] = typeToString(type);
-         JsonObject config = card.createNestedObject("config");
-         config["title"] = title;
-         config["label"] = label;
-         config["variant"] = variantToString(variant);
-         if (icon.length() > 0) config["icon"] = icon;
-     }
+    void toJson(JsonObject& card) override {
+        card["id"] = id;
+        card["type"] = typeToString(type);
+        card["weight"] = weight;
+        JsonObject config = card.createNestedObject("config");
+        config["title"] = title;
+        config["label"] = label;
+        config["variant"] = variantToString(variant);
+        if (icon.length() > 0) config["icon"] = icon;
+        if (sizeX > 1) config["sizeX"] = sizeX;
+        if (sizeY > 1) config["sizeY"] = sizeY;
+    }
      
      void handleAction(const String& action, JsonObject& data) override {
          if (action == "click" && callback) {
@@ -373,17 +460,20 @@
      LinkCard(const String& id, const String& title, const String& label, const String& url)
          : DashboardCard(id, CardType::LINK, title), label(label), url(url), target("_blank") {}
      
-     void toJson(JsonObject& card) override {
-         card["id"] = id;
-         card["type"] = typeToString(type);
-         JsonObject config = card.createNestedObject("config");
-         config["title"] = title;
-         config["label"] = label;
-         config["url"] = url;
-         config["target"] = target;
-         config["variant"] = variantToString(variant);
-         if (icon.length() > 0) config["icon"] = icon;
-     }
+    void toJson(JsonObject& card) override {
+        card["id"] = id;
+        card["type"] = typeToString(type);
+        card["weight"] = weight;
+        JsonObject config = card.createNestedObject("config");
+        config["title"] = title;
+        config["label"] = label;
+        config["url"] = url;
+        config["target"] = target;
+        config["variant"] = variantToString(variant);
+        if (icon.length() > 0) config["icon"] = icon;
+        if (sizeX > 1) config["sizeX"] = sizeX;
+        if (sizeY > 1) config["sizeY"] = sizeY;
+    }
      
      void setTarget(const String& t) { target = t; }
      void setIcon(const String& i) { icon = i; }
@@ -404,15 +494,18 @@
          variant = CardVariant::INFO;
      }
      
-     void toJson(JsonObject& card) override {
-         card["id"] = id;
-         card["type"] = typeToString(type);
-         JsonObject config = card.createNestedObject("config");
-         config["title"] = title;
-         config["label"] = label;
-         config["value"] = value;
-         config["variant"] = variantToString(variant);
-     }
+    void toJson(JsonObject& card) override {
+        card["id"] = id;
+        card["type"] = typeToString(type);
+        card["weight"] = weight;
+        JsonObject config = card.createNestedObject("config");
+        config["title"] = title;
+        config["label"] = label;
+        config["value"] = value;
+        config["variant"] = variantToString(variant);
+        if (sizeX > 1) config["sizeX"] = sizeX;
+        if (sizeY > 1) config["sizeY"] = sizeY;
+    }
      
      void handleAction(const String& action, JsonObject& data) override {
          if (action == "timezone" && callback) {
@@ -427,7 +520,7 @@
      void setCallback(TimezoneCallback cb) { callback = cb; }
  };
  
- /**
+/**
   * Date Card - Date/DateTime picker
   */
  class DateCard : public DashboardCard {
@@ -441,16 +534,19 @@
      DateCard(const String& id, const String& title, bool includeTime = false)
          : DashboardCard(id, CardType::DATE, title), includeTime(includeTime) {}
      
-     void toJson(JsonObject& card) override {
-         card["id"] = id;
-         card["type"] = typeToString(type);
-         JsonObject config = card.createNestedObject("config");
-         config["title"] = title;
-         config["value"] = value;
-         config["includeTime"] = includeTime;
-         if (minDate.length() > 0) config["min"] = minDate;
-         if (maxDate.length() > 0) config["max"] = maxDate;
-     }
+    void toJson(JsonObject& card) override {
+        card["id"] = id;
+        card["type"] = typeToString(type);
+        card["weight"] = weight;
+        JsonObject config = card.createNestedObject("config");
+        config["title"] = title;
+        config["value"] = value;
+        config["includeTime"] = includeTime;
+        if (minDate.length() > 0) config["min"] = minDate;
+        if (maxDate.length() > 0) config["max"] = maxDate;
+        if (sizeX > 1) config["sizeX"] = sizeX;
+        if (sizeY > 1) config["sizeY"] = sizeY;
+    }
      
      void handleAction(const String& action, JsonObject& data) override {
          if (action == "change" && !data["value"].isNull()) {
@@ -462,6 +558,82 @@
      void setCallback(DateCallback cb) { callback = cb; }
      void setRange(const String& min, const String& max) { minDate = min; maxDate = max; }
      void setValue(const String& val) { value = val; }
+ };
+ 
+ /**
+  * Time Card - Time picker (HH:MM or HH:MM:SS)
+  */
+ class TimeCard : public DashboardCard {
+ public:
+     String value;
+     bool includeSeconds;
+     TimeCallback callback;
+     
+     TimeCard(const String& id, const String& title, bool includeSeconds = false)
+         : DashboardCard(id, CardType::TIME, title), includeSeconds(includeSeconds) {}
+     
+    void toJson(JsonObject& card) override {
+        card["id"] = id;
+        card["type"] = typeToString(type);
+        card["weight"] = weight;
+        JsonObject config = card.createNestedObject("config");
+        config["title"] = title;
+        config["value"] = value;
+        config["includeSeconds"] = includeSeconds;
+        if (sizeX > 1) config["sizeX"] = sizeX;
+        if (sizeY > 1) config["sizeY"] = sizeY;
+    }
+     
+     void handleAction(const String& action, JsonObject& data) override {
+         if (action == "change" && !data["value"].isNull()) {
+             value = data["value"].as<String>();
+             if (callback) callback(value);
+         }
+     }
+     
+     void setCallback(TimeCallback cb) { callback = cb; }
+     void setValue(const String& val) { value = val; }
+ };
+ 
+ /**
+  * Location Card - Latitude/Longitude picker with browser geolocation
+  */
+ class LocationCard : public DashboardCard {
+ public:
+     float latitude;
+     float longitude;
+     String label;
+     LocationCallback callback;
+     
+     LocationCard(const String& id, const String& title, const String& label = "Get Current Location")
+         : DashboardCard(id, CardType::LOCATION, title), label(label), latitude(0), longitude(0) {
+         variant = CardVariant::INFO;
+     }
+     
+    void toJson(JsonObject& card) override {
+        card["id"] = id;
+        card["type"] = typeToString(type);
+        card["weight"] = weight;
+        JsonObject config = card.createNestedObject("config");
+        config["title"] = title;
+        config["label"] = label;
+        config["latitude"] = latitude;
+        config["longitude"] = longitude;
+        config["variant"] = variantToString(variant);
+        if (sizeX > 1) config["sizeX"] = sizeX;
+        if (sizeY > 1) config["sizeY"] = sizeY;
+    }
+     
+     void handleAction(const String& action, JsonObject& data) override {
+         if (action == "location") {
+             latitude = data["latitude"].as<float>();
+             longitude = data["longitude"].as<float>();
+             if (callback) callback(latitude, longitude);
+         }
+     }
+     
+     void setCallback(LocationCallback cb) { callback = cb; }
+     void setLocation(float lat, float lon) { latitude = lat; longitude = lon; }
  };
  
  /**
@@ -482,17 +654,20 @@
          variant = CardVariant::WARNING;
      }
      
-     void toJson(JsonObject& card) override {
-         card["id"] = id;
-         card["type"] = typeToString(type);
-         JsonObject config = card.createNestedObject("config");
-         config["title"] = title;
-         config["label"] = label;
-         config["confirmTitle"] = confirmTitle;
-         config["confirmMessage"] = confirmMessage;
-         config["variant"] = variantToString(variant);
-         if (icon.length() > 0) config["icon"] = icon;
-     }
+    void toJson(JsonObject& card) override {
+        card["id"] = id;
+        card["type"] = typeToString(type);
+        card["weight"] = weight;
+        JsonObject config = card.createNestedObject("config");
+        config["title"] = title;
+        config["label"] = label;
+        config["confirmTitle"] = confirmTitle;
+        config["confirmMessage"] = confirmMessage;
+        config["variant"] = variantToString(variant);
+        if (icon.length() > 0) config["icon"] = icon;
+        if (sizeX > 1) config["sizeX"] = sizeX;
+        if (sizeY > 1) config["sizeY"] = sizeY;
+    }
      
      void handleAction(const String& action, JsonObject& data) override {
          if (action == "confirm" && callback) {
@@ -520,21 +695,24 @@
          : DashboardCard(id, CardType::DATA_INPUT, title), placeholder(placeholder), 
            inputType("text"), min(0), max(100), step(1) {}
      
-     void toJson(JsonObject& card) override {
-         card["id"] = id;
-         card["type"] = typeToString(type);
-         JsonObject config = card.createNestedObject("config");
-         config["title"] = title;
-         config["value"] = value;
-         config["placeholder"] = placeholder;
-         config["inputType"] = inputType;
-         config["unit"] = unit;
-         if (inputType == "number") {
-             config["min"] = min;
-             config["max"] = max;
-             config["step"] = step;
-         }
-     }
+    void toJson(JsonObject& card) override {
+        card["id"] = id;
+        card["type"] = typeToString(type);
+        card["weight"] = weight;
+        JsonObject config = card.createNestedObject("config");
+        config["title"] = title;
+        config["value"] = value;
+        config["placeholder"] = placeholder;
+        config["inputType"] = inputType;
+        config["unit"] = unit;
+        if (inputType == "number") {
+            config["min"] = min;
+            config["max"] = max;
+            config["step"] = step;
+        }
+        if (sizeX > 1) config["sizeX"] = sizeX;
+        if (sizeY > 1) config["sizeY"] = sizeY;
+    }
      
      void handleAction(const String& action, JsonObject& data) override {
          if (!data["value"].isNull()) {
@@ -574,17 +752,20 @@
                     "#EC4899", "#8B5CF6", "#3B82F6", "#06B6D4", "#FFFFFF"};
      }
      
-     void toJson(JsonObject& card) override {
-         card["id"] = id;
-         card["type"] = typeToString(type);
-         JsonObject config = card.createNestedObject("config");
-         config["title"] = title;
-         config["value"] = value;
-         JsonArray presetsArr = config.createNestedArray("presets");
-         for (const String& preset : presets) {
-             presetsArr.add(preset);
-         }
-     }
+    void toJson(JsonObject& card) override {
+        card["id"] = id;
+        card["type"] = typeToString(type);
+        card["weight"] = weight;
+        JsonObject config = card.createNestedObject("config");
+        config["title"] = title;
+        config["value"] = value;
+        JsonArray presetsArr = config.createNestedArray("presets");
+        for (const String& preset : presets) {
+            presetsArr.add(preset);
+        }
+        if (sizeX > 1) config["sizeX"] = sizeX;
+        if (sizeY > 1) config["sizeY"] = sizeY;
+    }
      
      void handleAction(const String& action, JsonObject& data) override {
          if (action == "change" && !data["color"].isNull()) {
@@ -612,20 +793,23 @@
      DropdownCardImpl(const String& id, const String& title, const String& placeholder = "Select...")
          : DashboardCard(id, CardType::DROPDOWN, title), placeholder(placeholder) {}
      
-     void toJson(JsonObject& card) override {
-         card["id"] = id;
-         card["type"] = typeToString(type);
-         JsonObject config = card.createNestedObject("config");
-         config["title"] = title;
-         config["value"] = value;
-         config["placeholder"] = placeholder;
-         JsonArray optionsArr = config.createNestedArray("options");
-         for (const DropdownOption& opt : options) {
-             JsonObject optObj = optionsArr.createNestedObject();
-             optObj["value"] = opt.value;
-             optObj["label"] = opt.label;
-         }
-     }
+    void toJson(JsonObject& card) override {
+        card["id"] = id;
+        card["type"] = typeToString(type);
+        card["weight"] = weight;
+        JsonObject config = card.createNestedObject("config");
+        config["title"] = title;
+        config["value"] = value;
+        config["placeholder"] = placeholder;
+        JsonArray optionsArr = config.createNestedArray("options");
+        for (const DropdownOption& opt : options) {
+            JsonObject optObj = optionsArr.createNestedObject();
+            optObj["value"] = opt.value;
+            optObj["label"] = opt.label;
+        }
+        if (sizeX > 1) config["sizeX"] = sizeX;
+        if (sizeY > 1) config["sizeY"] = sizeY;
+    }
      
      void handleAction(const String& action, JsonObject& data) override {
          if (action == "change" && !data["value"].isNull()) {
@@ -655,14 +839,17 @@
      ToggleCard(const String& id, const String& title, const String& label = "", bool defaultValue = false)
          : DashboardCard(id, CardType::TOGGLE, title), label(label), value(defaultValue) {}
      
-     void toJson(JsonObject& card) override {
-         card["id"] = id;
-         card["type"] = typeToString(type);
-         JsonObject config = card.createNestedObject("config");
-         config["title"] = title;
-         config["label"] = label;
-         config["value"] = value;
-     }
+    void toJson(JsonObject& card) override {
+        card["id"] = id;
+        card["type"] = typeToString(type);
+        card["weight"] = weight;
+        JsonObject config = card.createNestedObject("config");
+        config["title"] = title;
+        config["label"] = label;
+        config["value"] = value;
+        if (sizeX > 1) config["sizeX"] = sizeX;
+        if (sizeY > 1) config["sizeY"] = sizeY;
+    }
      
      void handleAction(const String& action, JsonObject& data) override {
          if (action == "change" && !data["value"].isNull()) {
@@ -689,17 +876,20 @@
      SliderCard(const String& id, const String& title, int min = 0, int max = 100, int step = 1, const String& unit = "")
          : DashboardCard(id, CardType::SLIDER, title), min(min), max(max), step(step), unit(unit), value(min) {}
      
-     void toJson(JsonObject& card) override {
-         card["id"] = id;
-         card["type"] = typeToString(type);
-         JsonObject config = card.createNestedObject("config");
-         config["title"] = title;
-         config["value"] = value;
-         config["min"] = min;
-         config["max"] = max;
-         config["step"] = step;
-         config["unit"] = unit;
-     }
+    void toJson(JsonObject& card) override {
+        card["id"] = id;
+        card["type"] = typeToString(type);
+        card["weight"] = weight;
+        JsonObject config = card.createNestedObject("config");
+        config["title"] = title;
+        config["value"] = value;
+        config["min"] = min;
+        config["max"] = max;
+        config["step"] = step;
+        config["unit"] = unit;
+        if (sizeX > 1) config["sizeX"] = sizeX;
+        if (sizeY > 1) config["sizeY"] = sizeY;
+    }
      
      void handleAction(const String& action, JsonObject& data) override {
          if (action == "change" && !data["value"].isNull()) {
@@ -728,19 +918,22 @@
          : DashboardCard(id, CardType::GAUGE, title), min(min), max(max), unit(unit), 
            value(min), warningThreshold(70), dangerThreshold(90) {}
      
-     void toJson(JsonObject& card) override {
-         card["id"] = id;
-         card["type"] = typeToString(type);
-         JsonObject config = card.createNestedObject("config");
-         config["title"] = title;
-         config["value"] = value;
-         config["min"] = min;
-         config["max"] = max;
-         config["unit"] = unit;
-         JsonObject thresholds = config.createNestedObject("thresholds");
-         thresholds["warning"] = warningThreshold;
-         thresholds["danger"] = dangerThreshold;
-     }
+    void toJson(JsonObject& card) override {
+        card["id"] = id;
+        card["type"] = typeToString(type);
+        card["weight"] = weight;
+        JsonObject config = card.createNestedObject("config");
+        config["title"] = title;
+        config["value"] = value;
+        config["min"] = min;
+        config["max"] = max;
+        config["unit"] = unit;
+        JsonObject thresholds = config.createNestedObject("thresholds");
+        thresholds["warning"] = warningThreshold;
+        thresholds["danger"] = dangerThreshold;
+        if (sizeX > 1) config["sizeX"] = sizeX;
+        if (sizeY > 1) config["sizeY"] = sizeY;
+    }
      
      void setValue(float val) { value = constrain(val, min, max); }
      void setThresholds(float warning, float danger) { warningThreshold = warning; dangerThreshold = danger; }
@@ -758,13 +951,14 @@
      OTACard(const String& id, const String& title = "Firmware Update (OTA)", int maxSize = 4)
          : DashboardCard(id, CardType::OTA, title), maxSizeMB(maxSize) {}
      
-     void toJson(JsonObject& card) override {
-         card["id"] = id;
-         card["type"] = typeToString(type);
-         JsonObject config = card.createNestedObject("config");
-         config["title"] = title;
-         config["maxSize"] = maxSizeMB;
-     }
+    void toJson(JsonObject& card) override {
+        card["id"] = id;
+        card["type"] = typeToString(type);
+        card["weight"] = weight;
+        JsonObject config = card.createNestedObject("config");
+        config["title"] = title;
+        config["maxSize"] = maxSizeMB;
+    }
  };
  
  /**
@@ -781,20 +975,21 @@
      ConsoleCard(const String& id, const String& title = "Console Log", int maxEntries = 100)
          : DashboardCard(id, CardType::CONSOLE, title), maxEntries(maxEntries), autoScroll(true) {}
      
-     void toJson(JsonObject& card) override {
-         card["id"] = id;
-         card["type"] = typeToString(type);
-         JsonObject config = card.createNestedObject("config");
-         config["title"] = title;
-         config["autoScroll"] = autoScroll;
-         JsonArray logsArr = config.createNestedArray("logs");
-         for (const LogEntry& entry : logs) {
-             JsonObject logObj = logsArr.createNestedObject();
-             logObj["timestamp"] = entry.timestamp;
-             logObj["level"] = logLevelToString(entry.level);
-             logObj["message"] = entry.message;
-         }
-     }
+    void toJson(JsonObject& card) override {
+        card["id"] = id;
+        card["type"] = typeToString(type);
+        card["weight"] = weight;
+        JsonObject config = card.createNestedObject("config");
+        config["title"] = title;
+        config["autoScroll"] = autoScroll;
+        JsonArray logsArr = config.createNestedArray("logs");
+        for (const LogEntry& entry : logs) {
+            JsonObject logObj = logsArr.createNestedObject();
+            logObj["timestamp"] = entry.timestamp;
+            logObj["level"] = logLevelToString(entry.level);
+            logObj["message"] = entry.message;
+        }
+    }
      
      void handleAction(const String& action, JsonObject& data) override {
          if (action == "clear") {
@@ -840,6 +1035,17 @@
  };
  
 /**
+ * Card Group - Groups cards with a section title
+ */
+struct CardGroup {
+    String id;
+    String title;
+    std::vector<String> cardIds;
+    
+    CardGroup(const String& id, const String& title) : id(id), title(title) {}
+};
+
+/**
  * Main Dashboard Class
  */
 class ESPDashboardPlus {
@@ -847,6 +1053,7 @@ private:
     AsyncWebServer* _server;
     AsyncWebSocket* _ws;
     std::map<String, DashboardCard*> _cards;
+    std::vector<CardGroup> _groups;
     String _title;
     String _subtitle;
     
@@ -1054,6 +1261,20 @@ private:
         for (auto& pair : _cards) {
             JsonObject card = cardsArray.createNestedObject();
             pair.second->toJson(card);
+        }
+        
+        // Include groups
+        if (_groups.size() > 0) {
+            JsonArray groupsArray = doc.createNestedArray("groups");
+            for (const CardGroup& group : _groups) {
+                JsonObject groupObj = groupsArray.createNestedObject();
+                groupObj["id"] = group.id;
+                groupObj["title"] = group.title;
+                JsonArray cardIdsArr = groupObj.createNestedArray("cardIds");
+                for (const String& cardId : group.cardIds) {
+                    cardIdsArr.add(cardId);
+                }
+            }
         }
         
         String output;
@@ -1317,6 +1538,18 @@ using ESPDashboard = ESPDashboardPlus;
          return card;
      }
      
+     TimeCard* addTimeCard(const String& id, const String& title, bool includeSeconds = false) {
+         TimeCard* card = new TimeCard(id, title, includeSeconds);
+         _cards[id] = card;
+         return card;
+     }
+     
+     LocationCard* addLocationCard(const String& id, const String& title, const String& label = "Get Current Location") {
+         LocationCard* card = new LocationCard(id, title, label);
+         _cards[id] = card;
+         return card;
+     }
+     
      ActionButton* addActionButton(const String& id, const String& title, const String& label,
                                    const String& confirmTitle, const String& confirmMsg, ButtonCallback cb) {
          ActionButton* card = new ActionButton(id, title, label, confirmTitle, confirmMsg, cb);
@@ -1363,6 +1596,67 @@ using ESPDashboard = ESPDashboardPlus;
      // Note: OTA and Console are now only available as tabs, not dashboard cards
      // Use dashboard.begin(..., enableOTA, enableConsole) to configure
      
+     // ========================================
+     // Card Groups
+     // ========================================
+     
+     /**
+      * Create a new card group with a section title
+      * Cards added to a group will be displayed together under the group title
+      */
+     void addGroup(const String& id, const String& title) {
+         _groups.push_back(CardGroup(id, title));
+     }
+     
+     /**
+      * Add a card to an existing group
+      */
+     void addCardToGroup(const String& groupId, const String& cardId) {
+         for (auto& group : _groups) {
+             if (group.id == groupId) {
+                 group.cardIds.push_back(cardId);
+                 return;
+             }
+         }
+     }
+     
+     /**
+      * Create a group and add multiple cards to it at once
+      */
+     void addGroup(const String& id, const String& title, std::initializer_list<String> cardIds) {
+         CardGroup group(id, title);
+         for (const String& cardId : cardIds) {
+             group.cardIds.push_back(cardId);
+         }
+         _groups.push_back(group);
+     }
+     
+     /**
+      * Remove a card from a group
+      */
+     void removeCardFromGroup(const String& groupId, const String& cardId) {
+         for (auto& group : _groups) {
+             if (group.id == groupId) {
+                 group.cardIds.erase(
+                     std::remove(group.cardIds.begin(), group.cardIds.end(), cardId),
+                     group.cardIds.end()
+                 );
+                 return;
+             }
+         }
+     }
+     
+     /**
+      * Remove an entire group (does not delete the cards)
+      */
+     void removeGroup(const String& id) {
+         _groups.erase(
+             std::remove_if(_groups.begin(), _groups.end(), 
+                           [&id](const CardGroup& g) { return g.id == id; }),
+             _groups.end()
+         );
+     }
+
      // Get card by ID
      DashboardCard* getCard(const String& id) {
          if (_cards.find(id) != _cards.end()) {
@@ -1416,6 +1710,7 @@ using ESPDashboard = ESPDashboardPlus;
          }
      }
      
+     // Legacy: update single-series chart
      void updateChartCard(const String& id, float value) {
          ChartCard* card = static_cast<ChartCard*>(getCard(id));
          if (card && card->type == CardType::CHART) {
@@ -1426,6 +1721,28 @@ using ESPDashboard = ESPDashboardPlus;
              JsonArray dataArr = data["data"].to<JsonArray>();
              for (float v : card->data) {
                  dataArr.add(v);
+             }
+             broadcastUpdate(id, data);
+         }
+     }
+     
+     // Update multi-series chart with a data point for a specific series
+     void updateChartCard(const String& id, int seriesIndex, float value) {
+         ChartCard* card = static_cast<ChartCard*>(getCard(id));
+         if (card && card->type == CardType::CHART) {
+             card->addDataPoint(seriesIndex, value);
+             
+             DynamicJsonDocument doc(4096);
+             JsonObject data = doc.to<JsonObject>();
+             JsonArray seriesArr = data["series"].to<JsonArray>();
+             for (const ChartSeries& s : card->series) {
+                 JsonObject seriesObj = seriesArr.createNestedObject();
+                 seriesObj["name"] = s.name;
+                 seriesObj["color"] = s.color;
+                 JsonArray dataArr = seriesObj.createNestedArray("data");
+                 for (float v : s.data) {
+                     dataArr.add(v);
+                 }
              }
              broadcastUpdate(id, data);
          }
@@ -1499,6 +1816,31 @@ using ESPDashboard = ESPDashboardPlus;
              StaticJsonDocument<256> doc;
              JsonObject data = doc.to<JsonObject>();
              data["value"] = value;
+             broadcastUpdate(id, data);
+         }
+     }
+     
+     void updateTimeCard(const String& id, const String& value) {
+         TimeCard* card = static_cast<TimeCard*>(getCard(id));
+         if (card && card->type == CardType::TIME) {
+             card->setValue(value);
+             
+             StaticJsonDocument<256> doc;
+             JsonObject data = doc.to<JsonObject>();
+             data["value"] = value;
+             broadcastUpdate(id, data);
+         }
+     }
+     
+     void updateLocationCard(const String& id, float latitude, float longitude) {
+         LocationCard* card = static_cast<LocationCard*>(getCard(id));
+         if (card && card->type == CardType::LOCATION) {
+             card->setLocation(latitude, longitude);
+             
+             StaticJsonDocument<256> doc;
+             JsonObject data = doc.to<JsonObject>();
+             data["latitude"] = latitude;
+             data["longitude"] = longitude;
              broadcastUpdate(id, data);
          }
      }
