@@ -219,11 +219,25 @@ DateCard* addDateCard(const String& id, const String& title,
                       bool includeTime = false)
 ```
 
+### addTimeCard()
+
+```cpp
+TimeCard* addTimeCard(const String& id, const String& title, 
+                      bool includeSeconds = false)
+```
+
 ### addTimezoneCard()
 
 ```cpp
 TimezoneCard* addTimezoneCard(const String& id, const String& title, 
                               const String& label = "Get Browser Timezone")
+```
+
+### addLocationCard()
+
+```cpp
+LocationCard* addLocationCard(const String& id, const String& title, 
+                              const String& label = "Get Current Location")
 ```
 
 ### addStatusCard()
@@ -253,9 +267,23 @@ void updateGaugeCard(const String& id, float value)
 
 ### updateChartCard()
 
+Update a single-series chart or the legacy data array:
+
 ```cpp
 void updateChartCard(const String& id, float value)
 ```
+
+Update a specific series in a multi-series chart:
+
+```cpp
+void updateChartCard(const String& id, int seriesIndex, float value)
+```
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `id` | `String` | Chart card ID |
+| `value` | `float` | New data point value |
+| `seriesIndex` | `int` | Index of the series to update (0-based) |
 
 ### updateToggleCard()
 
@@ -285,6 +313,18 @@ void updateDropdownCard(const String& id, const String& value)
 
 ```cpp
 void updateDateCard(const String& id, const String& value)
+```
+
+### updateTimeCard()
+
+```cpp
+void updateTimeCard(const String& id, const String& value)
+```
+
+### updateLocationCard()
+
+```cpp
+void updateLocationCard(const String& id, float latitude, float longitude)
 ```
 
 ### updateLinkCard()
@@ -354,6 +394,116 @@ Remove a card from the dashboard.
 
 ```cpp
 void removeCard(const String& id)
+```
+
+### setWeight()
+
+Set the display order weight for a card. Cards with lower weight appear first within their group (or globally if no groups defined).
+
+```cpp
+card->setWeight(int weight)
+```
+
+### getWeight()
+
+Get the current weight of a card.
+
+```cpp
+int weight = card->getWeight()
+```
+
+---
+
+## Card Sizing
+
+Control how many grid columns and rows a card spans. Default size is 1×1. On mobile screens (<640px), cards automatically resize to 1×1.
+
+### setSize()
+
+Set both column and row span at once.
+
+```cpp
+card->setSize(int sizeX, int sizeY)
+```
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `sizeX` | `int` | Number of columns to span (default: 1) |
+| `sizeY` | `int` | Number of rows to span (default: 1) |
+
+### setSizeX()
+
+Set the column span only.
+
+```cpp
+card->setSizeX(int sizeX)
+```
+
+### setSizeY()
+
+Set the row span only.
+
+```cpp
+card->setSizeY(int sizeY)
+```
+
+### Example
+
+```cpp
+// Wide chart spanning 2 columns
+ChartCard* chart = dashboard.addChartCard("chart", "Temperature", ChartType::LINE, 20);
+chart->setSize(2, 1);
+
+// Large card spanning 2x2
+ChartCard* large = dashboard.addChartCard("large", "Overview", ChartType::AREA, 30);
+large->setSize(2, 2);
+
+// Tall gauge spanning 2 rows
+GaugeCard* gauge = dashboard.addGaugeCard("gauge", "CPU", 0, 100, "%");
+gauge->setSizeY(2);
+```
+
+## Card Grouping
+
+Organize cards into visual groups with section headers. Groups are optional - if no groups are defined, cards display in a flat grid without section titles.
+
+### addGroup()
+
+Create a card group with a section title.
+
+```cpp
+void addGroup(const String& id, const String& title)
+void addGroup(const String& id, const String& title, std::initializer_list<String> cardIds)
+```
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `id` | `String` | Unique group identifier |
+| `title` | `String` | Section header displayed above cards |
+| `cardIds` | `initializer_list` | Optional initial cards to include |
+
+### addCardToGroup()
+
+Add a card to an existing group.
+
+```cpp
+void addCardToGroup(const String& groupId, const String& cardId)
+```
+
+### removeCardFromGroup()
+
+Remove a card from a group (card remains on dashboard, just ungrouped).
+
+```cpp
+void removeCardFromGroup(const String& groupId, const String& cardId)
+```
+
+### removeGroup()
+
+Remove a group entirely (cards remain, just ungrouped).
+
+```cpp
+void removeGroup(const String& id)
 ```
 
 ---

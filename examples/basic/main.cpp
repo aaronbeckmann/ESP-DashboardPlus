@@ -94,15 +94,31 @@ void setup() {
     });
     
     // ========================================
+    // CARD GROUPS - Organize cards into sections
+    // ========================================
+    
+    // Create groups for organizing cards
+    dashboard.addGroup("sensors", "Sensor Readings");
+    dashboard.addGroup("charts", "Live Data");
+    dashboard.addGroup("controls", "Device Controls");
+    dashboard.addGroup("config", "Configuration");
+    dashboard.addGroup("actions", "System Actions");
+    
+    // ========================================
     // STAT CARDS - Display sensor values
+    // Cards are ordered by weight within groups (lower = first)
     // ========================================
     
     StatCard* tempCard = dashboard.addStatCard("temp", "Temperature", String(temperature, 1), "°C");
     tempCard->setVariant(CardVariant::PRIMARY);
     tempCard->setTrend("up", "+0.5°C");
+    tempCard->setWeight(10);  // Appears first in sensors group
+    dashboard.addCardToGroup("sensors", "temp");
     
     StatCard* humidCard = dashboard.addStatCard("humidity", "Humidity", String(humidity, 0), "%");
     humidCard->setVariant(CardVariant::INFO);
+    humidCard->setWeight(20);  // Appears second in sensors group
+    dashboard.addCardToGroup("sensors", "humidity");
     
     // ========================================
     // GAUGE CARD - Circular gauge display
@@ -111,22 +127,36 @@ void setup() {
     GaugeCard* cpuGauge = dashboard.addGaugeCard("cpu", "CPU Usage", 0, 100, "%");
     cpuGauge->setValue(cpuUsage);
     cpuGauge->setThresholds(60, 85);
+    cpuGauge->setWeight(30);  // Appears third in sensors group
+    dashboard.addCardToGroup("sensors", "cpu");
     
     // ========================================
     // CHART CARDS - Multiple chart types
+    // Cards can span multiple grid cells using setSize(x, y)
     // ========================================
     
-    // Line chart (default)
-    ChartCard* tempChart = dashboard.addChartCard("temp-chart", "Temperature History", ChartType::LINE, 20);
-    tempChart->setVariant(CardVariant::PRIMARY);
+    // Multi-series line chart (Temperature + Humidity on same chart)
+    // This chart spans 2 columns for a wider view
+    ChartCard* multiChart = dashboard.addChartCard("multi-chart", "Temp & Humidity", ChartType::LINE, 20);
+    int tempSeriesIdx = multiChart->addSeries("Temperature", "primary");
+    int humidSeriesIdx = multiChart->addSeries("Humidity", "info");
+    multiChart->setWeight(10);  // First chart
+    multiChart->setSize(2, 1);  // Span 2 columns, 1 row
+    dashboard.addCardToGroup("charts", "multi-chart");
     
-    // Area chart
-    ChartCard* humidChart = dashboard.addChartCard("humid-chart", "Humidity History", ChartType::AREA, 20);
-    humidChart->setVariant(CardVariant::INFO);
+    // Single-series area chart (backwards compatible)
+    ChartCard* cpuChart = dashboard.addChartCard("cpu-chart", "CPU History", ChartType::AREA, 20);
+    cpuChart->setVariant(CardVariant::WARNING);
+    cpuChart->setWeight(20);  // Second chart
+    dashboard.addCardToGroup("charts", "cpu-chart");
     
-    // Bar chart
+    // Multi-series bar chart - spans 2x2 for larger display
     ChartCard* barChart = dashboard.addChartCard("bar-chart", "Daily Usage", ChartType::BAR, 10);
-    barChart->setVariant(CardVariant::SUCCESS);
+    int readSeriesIdx = barChart->addSeries("Reads", "success");
+    int writeSeriesIdx = barChart->addSeries("Writes", "warning");
+    barChart->setWeight(30);  // Third chart
+    barChart->setSize(2, 2);  // Span 2 columns, 2 rows for larger display
+    dashboard.addCardToGroup("charts", "bar-chart");
     
     // ========================================
     // STATUS CARD - Icon + status message
@@ -134,9 +164,13 @@ void setup() {
     
     StatusCard* wifiStatus = dashboard.addStatusCard("wifi-status", "WiFi Status", StatusIcon::WIFI);
     wifiStatus->setStatus(StatusIcon::WIFI, CardVariant::SUCCESS, "Connected", WiFi.localIP().toString());
+    wifiStatus->setWeight(40);  // After sensors
+    dashboard.addCardToGroup("sensors", "wifi-status");
     
     StatusCard* sysStatus = dashboard.addStatusCard("sys-status", "System Status", StatusIcon::CHECK);
     sysStatus->setStatus(StatusIcon::CHECK, CardVariant::SUCCESS, "All Systems Operational", "Uptime: 0h 0m");
+    sysStatus->setWeight(50);  // Last in sensors group
+    dashboard.addCardToGroup("sensors", "sys-status");
     
     // ========================================
     // TOGGLE CARD - On/Off switch
@@ -148,6 +182,7 @@ void setup() {
         digitalWrite(LED_PIN, value ? HIGH : LOW);
         Serial.printf("LED: %s\n", value ? "ON" : "OFF");
     };
+    dashboard.addCardToGroup("controls", "led-toggle");
     
     // ========================================
     // SLIDER CARD - Range slider
@@ -159,6 +194,7 @@ void setup() {
         ledBrightness = value;
         Serial.printf("Brightness: %d%%\n", value);
     };
+    dashboard.addCardToGroup("controls", "brightness");
     
     // ========================================
     // COLOR PICKER CARD
@@ -169,6 +205,7 @@ void setup() {
         ledColor = color;
         Serial.printf("LED Color: %s\n", color.c_str());
     };
+    dashboard.addCardToGroup("controls", "led-color");
     
     // ========================================
     // INPUT CARDS - Text and number input
@@ -210,9 +247,23 @@ void setup() {
         Serial.printf("Selected date: %s\n", value.c_str());
     });
     
-    DateCard* alarmTime = dashboard.addDateCard("alarm", "Alarm Time", true);  // Include time
+    DateCard* alarmTime = dashboard.addDateCard("alarm", "Alarm DateTime", true);  // Include time
     alarmTime->setCallback([](const String& value) {
         Serial.printf("Alarm set for: %s\n", value.c_str());
+    });
+    
+    // ========================================
+    // TIME CARD - Time picker (HH:MM or HH:MM:SS)
+    // ========================================
+    
+    TimeCard* wakeTime = dashboard.addTimeCard("wake-time", "Wake Time", false);
+    wakeTime->setCallback([](const String& value) {
+        Serial.printf("Wake time set: %s\n", value.c_str());
+    });
+    
+    TimeCard* preciseTime = dashboard.addTimeCard("precise-time", "Precise Time", true);  // Include seconds
+    preciseTime->setCallback([](const String& value) {
+        Serial.printf("Precise time: %s\n", value.c_str());
     });
     
     // ========================================
@@ -223,6 +274,15 @@ void setup() {
     tzCard->setCallback([](const String& tz, int offset, const String& offsetStr) {
         selectedTimezone = tz;
         Serial.printf("Timezone: %s (offset: %d min, %s)\n", tz.c_str(), offset, offsetStr.c_str());
+    });
+    
+    // ========================================
+    // LOCATION CARD - Browser geolocation
+    // ========================================
+    
+    LocationCard* locCard = dashboard.addLocationCard("location", "Device Location", "Get Current Location");
+    locCard->setCallback([](float lat, float lon) {
+        Serial.printf("Location received: %.6f, %.6f\n", lat, lon);
     });
     
     // ========================================
@@ -318,9 +378,17 @@ void loop() {
         dashboard.updateStatCard("temp", String(temperature, 1));
         dashboard.updateStatCard("humidity", String(humidity, 0));
         dashboard.updateGaugeCard("cpu", cpuUsage);
-        dashboard.updateChartCard("temp-chart", temperature);
-        dashboard.updateChartCard("humid-chart", humidity);
-        dashboard.updateChartCard("bar-chart", random(20, 80));
+        
+        // Update multi-series chart (temp & humidity on same chart)
+        dashboard.updateChartCard("multi-chart", 0, temperature);   // Series 0: Temperature
+        dashboard.updateChartCard("multi-chart", 1, humidity);      // Series 1: Humidity
+        
+        // Update single-series chart (backwards compatible)
+        dashboard.updateChartCard("cpu-chart", cpuUsage);
+        
+        // Update multi-series bar chart
+        dashboard.updateChartCard("bar-chart", 0, random(20, 60));  // Reads
+        dashboard.updateChartCard("bar-chart", 1, random(10, 40));  // Writes
         
         // Update system status with uptime
         unsigned long uptime = (millis() - startTime) / 1000;

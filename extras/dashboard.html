@@ -510,13 +510,43 @@
     
     /* Chart Card */
     .chart-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
-    .chart-container { height: 140px; position: relative; }
+    .chart-wrapper { position: relative; }
+    .chart-container { height: 120px; position: relative; margin-left: 36px; margin-bottom: 20px; }
     .chart-svg { width: 100%; height: 100%; }
+    
+    .chart-y-axis {
+      position: absolute;
+      left: 0;
+      top: 0;
+      bottom: 20px;
+      width: 32px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      font-size: 0.6rem;
+      font-family: 'JetBrains Mono', monospace;
+      color: var(--text-muted);
+      text-align: right;
+      padding-right: 4px;
+    }
+    
+    .chart-x-axis {
+      position: absolute;
+      left: 36px;
+      right: 0;
+      bottom: 0;
+      height: 16px;
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.6rem;
+      font-family: 'JetBrains Mono', monospace;
+      color: var(--text-muted);
+    }
     
     .chart-path {
       fill: none;
       stroke: var(--primary);
-      stroke-width: 2.5;
+      stroke-width: 1;
       stroke-linecap: round;
       stroke-linejoin: round;
       filter: drop-shadow(0 0 8px var(--primary-glow));
@@ -555,6 +585,27 @@
       font-size: 0.65rem;
       color: var(--text-muted);
       text-transform: uppercase;
+    }
+    
+    .chart-legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-bottom: 8px;
+      font-size: 0.7rem;
+    }
+    
+    .chart-legend-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      color: var(--text-muted);
+    }
+    
+    .chart-legend-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
     }
     
     /* Buttons */
@@ -1262,8 +1313,11 @@
         grid-template-columns: 1fr; 
         gap: 16px;
       }
-      .grid .card[style*="grid-column: span 2"] {
+      .grid .card[style*="grid-column: span"] {
         grid-column: span 1 !important;
+      }
+      .grid .card[style*="grid-row: span"] {
+        grid-row: span 1 !important;
       }
       .header-content { flex-direction: column; gap: 16px; align-items: stretch; }
       .status { justify-content: center; }
@@ -1527,6 +1581,7 @@
     // WebSocket Connection
     let ws = null;
     let cards = {};
+    let groups = [];
     let reconnectTimeout = null;
     let lastMessageTime = null;
     let messageTimeoutCheck = null;
@@ -1657,8 +1712,16 @@
           if (msg.cards) {
             cards = {};
             msg.cards.forEach(card => { cards[card.id] = card; });
-            renderDashboard();
           }
+          
+          // Handle groups
+          if (msg.groups) {
+            groups = msg.groups;
+          } else {
+            groups = [];
+          }
+          
+          renderDashboard();
           
           // Update OTA info if provided
           if (msg.version) {
@@ -1727,20 +1790,68 @@
 
     function renderDashboard() {
       const dashboard = document.getElementById('dashboard');
-      let html = '<div class="grid">';
-      Object.values(cards).forEach(card => { html += renderCard(card); });
-      html += '</div>';
+      let html = '';
+      
+      // Helper to sort cards by weight (ascending)
+      const sortByWeight = (cardList) => {
+        return [...cardList].sort((a, b) => (a.weight || 0) - (b.weight || 0));
+      };
+      
+      // Track which cards are in groups
+      const groupedCardIds = new Set();
+      groups.forEach(g => g.cardIds.forEach(id => groupedCardIds.add(id)));
+      
+      // Render grouped cards first
+      groups.forEach(group => {
+        // Get cards in this group and sort by weight
+        const groupCards = group.cardIds
+          .map(cardId => cards[cardId])
+          .filter(Boolean);
+        const sortedGroupCards = sortByWeight(groupCards);
+        
+        html += `<div class="section-title">${group.title}</div>`;
+        html += '<div class="grid">';
+        sortedGroupCards.forEach(card => {
+          html += renderCard(card);
+        });
+        html += '</div>';
+      });
+      
+      // Render ungrouped cards (or all cards if no groups defined)
+      const ungroupedCards = Object.values(cards).filter(c => !groupedCardIds.has(c.id));
+      const sortedUngroupedCards = sortByWeight(ungroupedCards);
+      
+      if (sortedUngroupedCards.length > 0) {
+        // Only show "Other" section title if groups are defined
+        if (groups.length > 0) {
+          html += '<div class="section-title">Other</div>';
+        }
+        html += '<div class="grid">';
+        sortedUngroupedCards.forEach(card => { html += renderCard(card); });
+        html += '</div>';
+      }
+      
       dashboard.innerHTML = html;
       initializeCards();
     }
 
+    function getCardSizeStyle(config) {
+      const sizeX = config.sizeX || 1;
+      const sizeY = config.sizeY || 1;
+      let style = '';
+      if (sizeX > 1) style += `grid-column: span ${sizeX};`;
+      if (sizeY > 1) style += `grid-row: span ${sizeY};`;
+      return style;
+    }
+
     function renderCard(card) {
       const { id, type, config } = card;
-      
+      const sizeStyle = getCardSizeStyle(config);
+
       switch (type) {
         case 'stat':
           return `
-            <div class="card" data-id="${id}"><div class="update-indicator"></div>
+            <div class="card" data-id="${id}" style="${sizeStyle}"><div class="update-indicator"></div>
               <div class="card-title">${config.title || 'Value'}</div>
               <div>
                 <span class="stat-value">${config.value || 0}</span>
@@ -1753,7 +1864,7 @@
         case 'status':
           const iconMap = { wifi: '📶', check: '✓', error: '✕', warning: '⚠', info: 'ℹ', power: '⚡', sync: '🔄', cloud: '☁', lock: '🔒', unlock: '🔓' };
           return `
-            <div class="card" data-id="${id}"><div class="update-indicator"></div>
+            <div class="card" data-id="${id}" style="${sizeStyle}"><div class="update-indicator"></div>
               <div class="card-title">${config.title || 'Status'}</div>
               <div class="status-card">
                 <div class="status-icon ${config.variant || 'primary'}">
@@ -1768,8 +1879,9 @@
           `;
           
         case 'chart':
+          const chartAxisData = getChartAxisData(config);
           return `
-            <div class="card" data-id="${id}"><div class="update-indicator"></div>
+            <div class="card" data-id="${id}" style="${sizeStyle}"><div class="update-indicator"></div>
               <div class="chart-header">
                 <div class="card-title">${config.title || 'Chart'}</div>
                 <div style="display:flex;gap:8px;align-items:center">
@@ -1777,23 +1889,31 @@
                   <div class="chart-live"><div class="pulse-dot" style="width:6px;height:6px"></div> Live</div>
                 </div>
               </div>
-              <div class="chart-container">
-                <svg class="chart-svg" viewBox="0 0 100 70" preserveAspectRatio="none">
-                  <defs>
-                    <linearGradient id="chartGradient-${id}" x1="0%" y1="0%" x2="0%" y2="100%">
-                      <stop offset="0%" style="stop-color:var(--${config.color || 'primary'});stop-opacity:0.3"/>
-                      <stop offset="100%" style="stop-color:var(--${config.color || 'primary'});stop-opacity:0"/>
-                    </linearGradient>
-                  </defs>
-                  ${renderChartContent(id, config)}
-                </svg>
+              ${renderChartLegend(config)}
+              <div class="chart-wrapper">
+                <div class="chart-y-axis">
+                  <span>${chartAxisData.maxLabel}</span>
+                  <span>${chartAxisData.midLabel}</span>
+                  <span>${chartAxisData.minLabel}</span>
+                </div>
+                <div class="chart-container">
+                  <svg class="chart-svg" viewBox="0 0 100 70" preserveAspectRatio="none">
+                    <defs>
+                      ${renderChartGradients(id, config)}
+                    </defs>
+                    ${renderChartContent(id, config)}
+                  </svg>
+                </div>
+                <div class="chart-x-axis">
+                  ${chartAxisData.xLabels.map(l => `<span>${l}</span>`).join('')}
+                </div>
               </div>
             </div>
           `;
           
         case 'button':
           return `
-            <div class="card" data-id="${id}"><div class="update-indicator"></div>
+            <div class="card" data-id="${id}" style="${sizeStyle}"><div class="update-indicator"></div>
               <div class="card-title">${config.title || 'Button'}</div>
               <button class="btn btn-${config.variant || 'primary'}" onclick="sendAction('${id}', 'click')">
                 ${config.icon ? `<span>${config.icon}</span>` : ''}
@@ -1804,7 +1924,7 @@
           
         case 'link':
           return `
-            <div class="card" data-id="${id}"><div class="update-indicator"></div>
+            <div class="card" data-id="${id}" style="${sizeStyle}"><div class="update-indicator"></div>
               <div class="card-title">${config.title || 'Link'}</div>
               <a href="${config.url || '#'}" target="${config.target || '_blank'}" class="btn btn-${config.variant || 'primary'}" ${config.url ? '' : 'onclick="event.preventDefault()"'}>
                 ${config.icon ? `<span>${config.icon}</span>` : ''}
@@ -1816,7 +1936,7 @@
           
         case 'timezone':
           return `
-            <div class="card" data-id="${id}"><div class="update-indicator"></div>
+            <div class="card" data-id="${id}" style="${sizeStyle}"><div class="update-indicator"></div>
               <div class="card-title">${config.title || 'Timezone'}</div>
               <div style="margin-bottom:12px">
                 <span class="stat-value" style="font-size:1.25rem" id="tz-display-${id}">${config.value || 'Not set'}</span>
@@ -1830,15 +1950,56 @@
           
         case 'date':
           return `
-            <div class="card" data-id="${id}"><div class="update-indicator"></div>
+            <div class="card" data-id="${id}" style="${sizeStyle}"><div class="update-indicator"></div>
               <div class="card-title">${config.title || 'Date'}</div>
               <input type="${config.includeTime ? 'datetime-local' : 'date'}" class="date-input" id="date-${id}" value="${config.value || ''}" onchange="changeDate('${id}', this.value)" ${config.min ? `min="${config.min}"` : ''} ${config.max ? `max="${config.max}"` : ''}>
             </div>
           `;
           
+        case 'time':
+          return `
+            <div class="card" data-id="${id}" style="${sizeStyle}"><div class="update-indicator"></div>
+              <div class="card-title">${config.title || 'Time'}</div>
+              <input type="time" class="date-input" id="time-${id}" value="${config.value || ''}" ${config.includeSeconds ? 'step="1"' : ''} onchange="changeTime('${id}', this.value)">
+            </div>
+          `;
+          
+        case 'location':
+          const hasLocation = config.latitude !== 0 || config.longitude !== 0;
+          return `
+            <div class="card" data-id="${id}" style="${sizeStyle}"><div class="update-indicator"></div>
+              <div class="card-title">${config.title || 'Location'}</div>
+              <div style="margin-bottom:12px;font-family:'JetBrains Mono',monospace;font-size:0.85rem">
+                <div id="loc-display-${id}" style="color:var(--text-muted)">
+                  ${hasLocation ? `Lat: ${config.latitude.toFixed(6)}<br>Lon: ${config.longitude.toFixed(6)}` : 'Not set'}
+                </div>
+              </div>
+              <div id="loc-error-${id}" style="display:none;color:var(--warning);font-size:0.75rem;margin-bottom:8px;padding:8px;background:var(--warning-glow);border-radius:6px"></div>
+              <div id="loc-manual-${id}" style="display:none;margin-bottom:12px">
+                <div style="margin-bottom:8px">
+                  <input type="number" step="any" placeholder="Latitude" id="loc-lat-${id}" class="input" style="width:100%" value="${config.latitude || ''}">
+                  <input type="number" step="any" placeholder="Longitude" id="loc-lon-${id}" class="input" style="width:100%" value="${config.longitude || ''}">
+                </div>
+                <button class="btn btn-success" onclick="setManualLocation('${id}')" style="width:100%">
+                  <svg class="icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+                  Set Coordinates
+                </button>
+              </div>
+              <div style="display:flex;gap:8px">
+                <button class="btn btn-${config.variant || 'info'}" onclick="getLocation('${id}')">
+                  <svg class="icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="10" r="3"/><path d="M12 21.7C17.3 17 20 13 20 10a8 8 0 1 0-16 0c0 3 2.7 6.9 8 11.7z"/></svg>
+                  ${config.label || 'Get Location'}
+                </button>
+                <button class="btn btn-secondary" onclick="toggleManualLocation('${id}')" title="Enter manually">
+                  <svg class="icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+                </button>
+              </div>
+            </div>
+          `;
+          
         case 'toggle':
           return `
-            <div class="card" data-id="${id}"><div class="update-indicator"></div>
+            <div class="card" data-id="${id}" style="${sizeStyle}"><div class="update-indicator"></div>
               <div class="toggle-container">
                 <div>
                   <div class="card-title">${config.title || 'Toggle'}</div>
@@ -1854,7 +2015,7 @@
         case 'slider':
           const pct = ((config.value - (config.min || 0)) / ((config.max || 100) - (config.min || 0))) * 100;
           return `
-            <div class="card" data-id="${id}">
+            <div class="card" data-id="${id}" style="${sizeStyle}">
               <div class="slider-header">
                 <div class="card-title">${config.title || 'Slider'}</div>
                 <div><span class="slider-value">${config.value || 0}</span><span class="stat-unit">${config.unit || ''}</span></div>
@@ -1872,7 +2033,7 @@
           
         case 'input':
           return `
-            <div class="card" data-id="${id}">
+            <div class="card" data-id="${id}" style="${sizeStyle}">
               <div class="card-title">${config.title || 'Input'}</div>
               <div class="input-group">
                 <input type="${config.inputType || 'text'}" class="input" placeholder="${config.placeholder || ''}" value="${config.value || ''}" id="input-${id}" ${config.inputType === 'number' ? `min="${config.min || ''}" max="${config.max || ''}" step="${config.step || 1}"` : ''}>
@@ -1888,7 +2049,7 @@
           
         case 'color':
           return `
-            <div class="card" data-id="${id}">
+            <div class="card" data-id="${id}" style="${sizeStyle}">
               <div class="card-title">${config.title || 'Color'}</div>
               <div class="color-row">
                 <div class="color-preview" style="background:${config.value || '#00D4AA'};box-shadow:0 4px 24px ${config.value || '#00D4AA'}50"></div>
@@ -1906,7 +2067,7 @@
         case 'dropdown':
           const selectedOpt = (config.options || []).find(o => o.value === config.value);
           return `
-            <div class="card" data-id="${id}">
+            <div class="card" data-id="${id}" style="${sizeStyle}">
               <div class="card-title">${config.title || 'Select'}</div>
               <div class="dropdown" id="dropdown-${id}">
                 <div class="dropdown-trigger" onclick="toggleDropdown('${id}')">
@@ -1927,7 +2088,7 @@
           
         case 'action':
           return `
-            <div class="card" data-id="${id}">
+            <div class="card" data-id="${id}" style="${sizeStyle}">
               <div class="card-title">${config.title || 'Action'}</div>
               <button class="btn btn-${config.variant || 'warning'}" onclick="showConfirmModal('${id}', '${(config.confirmTitle || 'Confirm').replace(/'/g, "\\'")}', '${(config.confirmMessage || 'Are you sure?').replace(/'/g, "\\'")}')">
                 ${config.icon ? `<span>${config.icon}</span>` : ''}
@@ -1944,7 +2105,7 @@
           const gaugeColor = config.value >= (config.thresholds?.danger || 90) ? 'var(--danger)' : 
                             config.value >= (config.thresholds?.warning || 70) ? 'var(--warning)' : 'var(--primary)';
           return `
-            <div class="card" data-id="${id}">
+            <div class="card" data-id="${id}" style="${sizeStyle}">
               <div class="card-title" style="text-align:center">${config.title || 'Gauge'}</div>
               <div class="gauge-container">
                 <svg class="gauge-svg" viewBox="0 0 200 120">
@@ -1970,27 +2131,89 @@
           return ''; // These card types are only available as tabs
           
         default:
-          return `<div class="card" data-id="${id}"><div class="card-title">Unknown: ${type}</div></div>`;
+          return `<div class="card" data-id="${id}" style="${sizeStyle}"><div class="card-title">Unknown: ${type}</div></div>`;
       }
     }
 
-    function renderChartContent(id, config) {
-      const data = config.data || [];
-      if (data.length === 0) return '';
+    function getChartAxisData(config) {
+      const series = config.series || [];
+      const legacyData = config.data || [];
       
+      let allSeries = [];
+      if (series.length > 0) {
+        allSeries = series;
+      } else if (legacyData.length > 0) {
+        allSeries = [{ name: '', color: config.color || 'primary', data: legacyData }];
+      }
+      
+      // Find global min/max
+      let globalMin = Infinity, globalMax = -Infinity;
+      let maxDataPoints = 0;
+      allSeries.forEach(s => {
+        maxDataPoints = Math.max(maxDataPoints, s.data.length);
+        s.data.forEach(v => {
+          if (v < globalMin) globalMin = v;
+          if (v > globalMax) globalMax = v;
+        });
+      });
+      
+      if (!isFinite(globalMin)) globalMin = 0;
+      if (!isFinite(globalMax)) globalMax = 100;
+      
+      // Format axis values
+      const formatVal = (v) => {
+        if (Math.abs(v) >= 1000) return (v / 1000).toFixed(1) + 'k';
+        if (Math.abs(v) >= 1) return v.toFixed(1);
+        return v.toFixed(2);
+      };
+      
+      // X-axis time labels (N-Ns format)
+      const xLabels = [];
+      const numLabels = Math.min(5, maxDataPoints);
+      if (maxDataPoints > 1) {
+        for (let i = 0; i < numLabels; i++) {
+          const idx = Math.floor(i * (maxDataPoints - 1) / (numLabels - 1));
+          const offset = maxDataPoints - 1 - idx;
+          xLabels.push(offset === 0 ? 'N' : `N-${offset}`);
+        }
+      } else {
+        xLabels.push('N');
+      }
+      
+      return {
+        minLabel: formatVal(globalMin),
+        maxLabel: formatVal(globalMax),
+        midLabel: formatVal((globalMin + globalMax) / 2),
+        xLabels: xLabels
+      };
+    }
+    
+    function renderChartContent(id, config) {
+      const series = config.series || [];
+      const legacyData = config.data || [];
       const chartType = config.chartType || 'line';
-      const color = `var(--${config.color || 'primary'})`;
-      const min = Math.min(...data);
-      const max = Math.max(...data);
-      const range = max - min || 1;
       const padding = 5;
       const height = 60;
       
-      const points = data.map((v, i) => ({
-        x: padding + (i / (data.length - 1 || 1)) * (100 - padding * 2),
-        y: height - padding - ((v - min) / range) * (height - padding * 2),
-        value: v
-      }));
+      // Determine data sources
+      let allSeries = [];
+      if (series.length > 0) {
+        allSeries = series;
+      } else if (legacyData.length > 0) {
+        allSeries = [{ name: '', color: config.color || 'primary', data: legacyData }];
+      }
+      
+      if (allSeries.length === 0 || allSeries.every(s => s.data.length === 0)) return '';
+      
+      // Find global min/max across all series
+      let globalMin = Infinity, globalMax = -Infinity;
+      allSeries.forEach(s => {
+        s.data.forEach(v => {
+          if (v < globalMin) globalMin = v;
+          if (v > globalMax) globalMax = v;
+        });
+      });
+      const range = globalMax - globalMin || 1;
       
       // Grid lines
       let svg = `<g class="chart-grid">`;
@@ -2000,52 +2223,96 @@
       }
       svg += `</g>`;
       
-      if (chartType === 'bar') {
-        const barWidth = (100 - padding * 2) / data.length * 0.7;
-        const gap = (100 - padding * 2) / data.length * 0.15;
-        data.forEach((v, i) => {
-          const barHeight = ((v - min) / range) * (height - padding * 2);
-          const x = padding + i * ((100 - padding * 2) / data.length) + gap;
-          const y = height - padding - barHeight;
-          svg += `<rect class="chart-bar" x="${x}" y="${y}" width="${barWidth}" height="${barHeight}" rx="2" style="fill:${color}"/>`;
-        });
-      } else if (chartType === 'scatter') {
-        points.forEach(p => {
-          svg += `<circle class="chart-point" cx="${p.x}" cy="${p.y}" r="4" style="fill:${color}"/>`;
-        });
-      } else if (chartType === 'step') {
-        let path = `M ${points[0].x} ${points[0].y}`;
-        for (let i = 1; i < points.length; i++) {
-          path += ` H ${points[i].x} V ${points[i].y}`;
-        }
-        svg += `<path class="chart-path" d="${path}" style="stroke:${color}"/>`;
-        points.forEach(p => {
-          svg += `<circle class="chart-point" cx="${p.x}" cy="${p.y}" r="3" style="fill:${color}"/>`;
-        });
-      } else {
-        // Line or Area
-        let linePath = `M ${points[0].x} ${points[0].y}`;
-        for (let i = 1; i < points.length; i++) {
-          const prev = points[i - 1];
-          const curr = points[i];
-          const cpx = (prev.x + curr.x) / 2;
-          linePath += ` C ${cpx} ${prev.y} ${cpx} ${curr.y} ${curr.x} ${curr.y}`;
-        }
+      // Render each series
+      allSeries.forEach((s, seriesIdx) => {
+        const data = s.data;
+        if (data.length === 0) return;
         
-        if (chartType === 'area') {
-          const areaPath = linePath + ` L ${points[points.length-1].x} ${height-padding} L ${points[0].x} ${height-padding} Z`;
-          svg += `<path class="chart-area" d="${areaPath}" style="fill:url(#chartGradient-${id})"/>`;
+        const color = `var(--${s.color || 'primary'})`;
+        
+        const points = data.map((v, i) => ({
+          x: padding + (i / (data.length - 1 || 1)) * (100 - padding * 2),
+          y: height - padding - ((v - globalMin) / range) * (height - padding * 2),
+          value: v
+        }));
+        
+        if (chartType === 'bar') {
+          const totalBars = allSeries.reduce((sum, ss) => Math.max(sum, ss.data.length), 0);
+          const groupWidth = (100 - padding * 2) / totalBars;
+          const barWidth = groupWidth * 0.7 / allSeries.length;
+          const gap = groupWidth * 0.15;
+          data.forEach((v, i) => {
+            const barHeight = ((v - globalMin) / range) * (height - padding * 2);
+            const x = padding + i * groupWidth + gap + seriesIdx * barWidth;
+            const y = height - padding - barHeight;
+            svg += `<rect class="chart-bar" x="${x}" y="${y}" width="${barWidth}" height="${barHeight}" rx="2" style="fill:${color}"/>`;
+          });
+        } else if (chartType === 'scatter') {
+          points.forEach(p => {
+            svg += `<circle class="chart-point" cx="${p.x}" cy="${p.y}" r="4" style="fill:${color}"/>`;
+          });
+        } else if (chartType === 'step') {
+          let path = `M ${points[0].x} ${points[0].y}`;
+          for (let i = 1; i < points.length; i++) {
+            path += ` H ${points[i].x} V ${points[i].y}`;
+          }
+          svg += `<path class="chart-path" d="${path}" style="stroke:${color}"/>`;
+          points.forEach(p => {
+            svg += `<circle class="chart-point" cx="${p.x}" cy="${p.y}" r="3" style="fill:${color}"/>`;
+          });
+        } else {
+          // Line or Area
+          let linePath = `M ${points[0].x} ${points[0].y}`;
+          for (let i = 1; i < points.length; i++) {
+            const prev = points[i - 1];
+            const curr = points[i];
+            const cpx = (prev.x + curr.x) / 2;
+            linePath += ` C ${cpx} ${prev.y} ${cpx} ${curr.y} ${curr.x} ${curr.y}`;
+          }
+          
+          if (chartType === 'area') {
+            const areaPath = linePath + ` L ${points[points.length-1].x} ${height-padding} L ${points[0].x} ${height-padding} Z`;
+            svg += `<path class="chart-area" d="${areaPath}" style="fill:url(#chartGradient-${id}-${seriesIdx})"/>`;
+          }
+          
+          svg += `<path class="chart-path" d="${linePath}" style="stroke:${color}"/>`;
+          
+          // Round points
+          points.forEach(p => {
+            svg += `<circle class="chart-point" cx="${p.x}" cy="${p.y}" r="1.5" style="fill:${color}"/>`;
+          });
         }
-        
-        svg += `<path class="chart-path" d="${linePath}" style="stroke:${color}"/>`;
-        
-        // Round points
-        points.forEach(p => {
-          svg += `<circle class="chart-point" cx="${p.x}" cy="${p.y}" r="3" style="fill:${color}"/>`;
-        });
-      }
+      });
       
       return svg;
+    }
+    
+    function renderChartGradients(id, config) {
+      const series = config.series || [];
+      const legacyData = config.data || [];
+      
+      let allSeries = [];
+      if (series.length > 0) {
+        allSeries = series;
+      } else if (legacyData.length > 0) {
+        allSeries = [{ name: '', color: config.color || 'primary', data: legacyData }];
+      }
+      
+      return allSeries.map((s, idx) => `
+        <linearGradient id="chartGradient-${id}-${idx}" x1="0%" y1="0%" x2="0%" y2="100%">
+          <stop offset="0%" style="stop-color:var(--${s.color || 'primary'});stop-opacity:0.3"/>
+          <stop offset="100%" style="stop-color:var(--${s.color || 'primary'});stop-opacity:0"/>
+        </linearGradient>
+      `).join('');
+    }
+    
+    function renderChartLegend(config) {
+      const series = config.series || [];
+      if (series.length <= 1) return '';
+      
+      return `<div class="chart-legend">${series.map(s => 
+        `<span class="chart-legend-item"><span class="chart-legend-dot" style="background:var(--${s.color || 'primary'})"></span>${s.name}</span>`
+      ).join('')}</div>`;
     }
 
     function updateCard(id) {
@@ -2099,8 +2366,29 @@
 
           case 'chart': {
             const container = el.querySelector('.chart-container');
+            const legendEl = el.querySelector('.chart-legend');
+            const yAxisEl = el.querySelector('.chart-y-axis');
+            const xAxisEl = el.querySelector('.chart-x-axis');
+            
             if (container) {
-              container.innerHTML = `<svg class="chart-svg" viewBox="0 0 100 70" preserveAspectRatio="none"><defs><linearGradient id="chartGradient-${id}" x1="0%" y1="0%" x2="0%" y2="100%"><stop offset="0%" style="stop-color:var(--${card.config.color || 'primary'});stop-opacity:0.3"/><stop offset="100%" style="stop-color:var(--${card.config.color || 'primary'});stop-opacity:0"/></linearGradient></defs>${renderChartContent(id, card.config)}</svg>`;
+              container.innerHTML = `<svg class="chart-svg" viewBox="0 0 100 70" preserveAspectRatio="none"><defs>${renderChartGradients(id, card.config)}</defs>${renderChartContent(id, card.config)}</svg>`;
+            }
+            
+            // Update axis labels
+            const axisData = getChartAxisData(card.config);
+            if (yAxisEl) {
+              yAxisEl.innerHTML = `<span>${axisData.maxLabel}</span><span>${axisData.midLabel}</span><span>${axisData.minLabel}</span>`;
+            }
+            if (xAxisEl) {
+              xAxisEl.innerHTML = axisData.xLabels.map(l => `<span>${l}</span>`).join('');
+            }
+            
+            // Update legend if multi-series
+            const newLegend = renderChartLegend(card.config);
+            if (newLegend && !legendEl) {
+              container.insertAdjacentHTML('beforebegin', newLegend);
+            } else if (legendEl && !newLegend) {
+              legendEl.remove();
             }
             break;
           }
@@ -2271,6 +2559,95 @@
     function changeDate(id, value) {
       cards[id].config.value = value;
       sendAction(id, 'change', { value });
+    }
+
+    function changeTime(id, value) {
+      cards[id].config.value = value;
+      sendAction(id, 'change', { value });
+    }
+
+    function getLocation(id) {
+      const errorDiv = document.getElementById(`loc-error-${id}`);
+      const manualDiv = document.getElementById(`loc-manual-${id}`);
+      
+      if (!navigator.geolocation) {
+        if (errorDiv) {
+          errorDiv.textContent = 'Geolocation not supported. Use manual input below.';
+          errorDiv.style.display = 'block';
+        }
+        if (manualDiv) manualDiv.style.display = 'block';
+        return;
+      }
+      
+      const btn = document.querySelector(`[data-id="${id}"] .btn.btn-info, [data-id="${id}"] .btn.btn-primary`);
+      if (btn) btn.textContent = 'Getting location...';
+      if (errorDiv) errorDiv.style.display = 'none';
+      
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const lat = position.coords.latitude;
+          const lon = position.coords.longitude;
+          cards[id].config.latitude = lat;
+          cards[id].config.longitude = lon;
+          
+          const display = document.getElementById(`loc-display-${id}`);
+          if (display) {
+            display.innerHTML = `Lat: ${lat.toFixed(6)}<br>Lon: ${lon.toFixed(6)}`;
+          }
+          if (btn) btn.innerHTML = `<svg class="icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="10" r="3"/><path d="M12 21.7C17.3 17 20 13 20 10a8 8 0 1 0-16 0c0 3 2.7 6.9 8 11.7z"/></svg> ${cards[id].config.label || 'Get Location'}`;
+          if (manualDiv) manualDiv.style.display = 'none';
+          
+          sendAction(id, 'location', { latitude: lat, longitude: lon });
+        },
+        (error) => {
+          let errorMsg = 'Unable to get location. ';
+          switch(error.code) {
+            case 1: errorMsg += 'Permission denied. Check browser settings or use manual input.'; break;
+            case 2: errorMsg += 'Position unavailable. Try manual input.'; break;
+            case 3: errorMsg += 'Request timeout. Try again or use manual input.'; break;
+            default: errorMsg += error.message;
+          }
+          if (errorDiv) {
+            errorDiv.textContent = errorMsg;
+            errorDiv.style.display = 'block';
+          }
+          if (manualDiv) manualDiv.style.display = 'block';
+          if (btn) btn.innerHTML = `<svg class="icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="10" r="3"/><path d="M12 21.7C17.3 17 20 13 20 10a8 8 0 1 0-16 0c0 3 2.7 6.9 8 11.7z"/></svg> ${cards[id].config.label || 'Get Location'}`;
+        },
+        { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+      );
+    }
+    
+    function toggleManualLocation(id) {
+      const manualDiv = document.getElementById(`loc-manual-${id}`);
+      if (manualDiv) {
+        manualDiv.style.display = manualDiv.style.display === 'none' ? 'block' : 'none';
+      }
+    }
+    
+    function setManualLocation(id) {
+      const latInput = document.getElementById(`loc-lat-${id}`);
+      const lonInput = document.getElementById(`loc-lon-${id}`);
+      const lat = parseFloat(latInput?.value);
+      const lon = parseFloat(lonInput?.value);
+      
+      if (isNaN(lat) || isNaN(lon) || lat < -90 || lat > 90 || lon < -180 || lon > 180) {
+        alert('Please enter valid coordinates (Lat: -90 to 90, Lon: -180 to 180)');
+        return;
+      }
+      
+      cards[id].config.latitude = lat;
+      cards[id].config.longitude = lon;
+      
+      const display = document.getElementById(`loc-display-${id}`);
+      if (display) {
+        display.innerHTML = `Lat: ${lat.toFixed(6)}<br>Lon: ${lon.toFixed(6)}`;
+      }
+      
+      const errorDiv = document.getElementById(`loc-error-${id}`);
+      if (errorDiv) errorDiv.style.display = 'none';
+      
+      sendAction(id, 'location', { latitude: lat, longitude: lon });
     }
 
     function clearConsole(id) {
