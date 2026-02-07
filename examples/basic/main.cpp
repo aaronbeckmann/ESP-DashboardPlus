@@ -150,12 +150,12 @@ void setup() {
     cpuChart->setWeight(20);  // Second chart
     dashboard.addCardToGroup("charts", "cpu-chart");
     
-    // Multi-series bar chart - spans 2x2 for larger display
+    // Multi-series bar chart - spans 2x1
     ChartCard* barChart = dashboard.addChartCard("bar-chart", "Daily Usage", ChartType::BAR, 10);
     int readSeriesIdx = barChart->addSeries("Reads", "success");
     int writeSeriesIdx = barChart->addSeries("Writes", "warning");
     barChart->setWeight(30);  // Third chart
-    barChart->setSize(2, 2);  // Span 2 columns, 2 rows for larger display
+    barChart->setSize(2, 1);  // Span 2 columns, 1 rows
     dashboard.addCardToGroup("charts", "bar-chart");
     
     // ========================================
@@ -216,6 +216,7 @@ void setup() {
     ssidInput->onSubmit = [](const String& value) {
         Serial.printf("New SSID: %s\n", value.c_str());
     };
+    dashboard.addCardToGroup("config", "wifi-ssid");
     
     // Number input
     InputCard* intervalInput = dashboard.addInputCard("update-interval", "Update Interval", "1000");
@@ -223,6 +224,7 @@ void setup() {
     intervalInput->onSubmit = [](const String& value) {
         Serial.printf("Update interval: %s ms\n", value.c_str());
     };
+    dashboard.addCardToGroup("config", "update-interval");
     
     // ========================================
     // DROPDOWN CARD - Select menu
@@ -237,6 +239,7 @@ void setup() {
         wifiMode = value;
         Serial.printf("WiFi Mode: %s\n", value.c_str());
     };
+    dashboard.addCardToGroup("config", "wifi-mode");
     
     // ========================================
     // DATE CARD - Date/DateTime picker
@@ -246,11 +249,13 @@ void setup() {
     scheduleDate->setCallback([](const String& value) {
         Serial.printf("Selected date: %s\n", value.c_str());
     });
+    dashboard.addCardToGroup("config", "schedule");
     
     DateCard* alarmTime = dashboard.addDateCard("alarm", "Alarm DateTime", true);  // Include time
     alarmTime->setCallback([](const String& value) {
         Serial.printf("Alarm set for: %s\n", value.c_str());
     });
+    dashboard.addCardToGroup("config", "alarm");
     
     // ========================================
     // TIME CARD - Time picker (HH:MM or HH:MM:SS)
@@ -260,11 +265,13 @@ void setup() {
     wakeTime->setCallback([](const String& value) {
         Serial.printf("Wake time set: %s\n", value.c_str());
     });
+    dashboard.addCardToGroup("config", "wake-time");
     
     TimeCard* preciseTime = dashboard.addTimeCard("precise-time", "Precise Time", true);  // Include seconds
     preciseTime->setCallback([](const String& value) {
         Serial.printf("Precise time: %s\n", value.c_str());
     });
+    dashboard.addCardToGroup("config", "precise-time");
     
     // ========================================
     // TIMEZONE CARD - Browser timezone detection
@@ -275,6 +282,7 @@ void setup() {
         selectedTimezone = tz;
         Serial.printf("Timezone: %s (offset: %d min, %s)\n", tz.c_str(), offset, offsetStr.c_str());
     });
+    dashboard.addCardToGroup("config", "timezone");
     
     // ========================================
     // LOCATION CARD - Browser geolocation
@@ -284,6 +292,7 @@ void setup() {
     locCard->setCallback([](float lat, float lon) {
         Serial.printf("Location received: %.6f, %.6f\n", lat, lon);
     });
+    dashboard.addCardToGroup("config", "location");
     
     // ========================================
     // BUTTON CARDS - Simple action buttons
@@ -293,6 +302,7 @@ void setup() {
         Serial.println("Save button clicked!");
     });
     saveBtn->setVariant(CardVariant::PRIMARY);
+    dashboard.addCardToGroup("config", "save");
     
     // ========================================
     // LINK CARDS - URL redirect buttons
@@ -300,9 +310,11 @@ void setup() {
     
     LinkCard* docsLink = dashboard.addLinkCard("docs", "Documentation", "View Docs", "https://github.com/aaronbeckmann/ESP-DashboardPlus/docs");
     docsLink->setVariant(CardVariant::INFO);
+    dashboard.addCardToGroup("actions", "docs");
     
     LinkCard* githubLink = dashboard.addLinkCard("github", "Source Code", "GitHub", "https://github.com/aaronbeckmann/ESP-DashboardPlus");
     githubLink->setTarget("_blank");
+    dashboard.addCardToGroup("actions", "github");
     
     // ========================================
     // ACTION BUTTONS - With confirmation popup
@@ -321,6 +333,7 @@ void setup() {
         }
     );
     restartBtn->setVariant(CardVariant::WARNING);
+    dashboard.addCardToGroup("actions", "restart");
     
     ActionButton* resetBtn = dashboard.addActionButton(
         "factory-reset",
@@ -335,6 +348,7 @@ void setup() {
         }
     );
     resetBtn->setVariant(CardVariant::DANGER);
+    dashboard.addCardToGroup("actions", "factory-reset");
     
     // Log some initial messages
     dashboard.logInfo("ESP-DashboardPlus initialized successfully");
